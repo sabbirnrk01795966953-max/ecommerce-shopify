@@ -58,11 +58,48 @@
                 <img class="preview" src="{{ asset('storage/'.$siteSettings['hero_image_path']) }}" alt="Hero">
             @endif
         </label>
-        <label>Primary Color
+        <div class="span-2">
+            <h3 style="margin:8px 0 10px">Color Palette</h3>
+            <p class="muted" style="margin-top:0">একটি preset palette বেছে নিন, অথবা নিচের color picker দিয়ে প্রতিটি color customize করুন।</p>
+            <div id="themePalettePresets" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+                <button type="button" class="btn outline theme-preset" data-colors='["#EC4899","#831843","#F59E0B","#FFF1F7","#FCE7F3","#FFFDFE","#2B1020","#7C596B","#FFFFFF","#E11D48"]'>Girls / Fashion</button>
+                <button type="button" class="btn outline theme-preset" data-colors='["#0EA5E9","#0C4A6E","#F97316","#F0F9FF","#E0F2FE","#F8FAFC","#102A43","#52606D","#FFFFFF","#F97316"]'>China Household</button>
+                <button type="button" class="btn outline theme-preset" data-colors='["#EF4444","#111827","#F59E0B","#F8FAFC","#E5E7EB","#FFFFFF","#111827","#6B7280","#FFFFFF","#DC2626"]'>Car & Bike</button>
+                <button type="button" class="btn outline theme-preset" data-colors='["#22C55E","#14532D","#14B8A6","#F0FDF4","#DCFCE7","#FFFFFF","#132A1A","#5F7465","#FFFFFF","#F43F5E"]'>Fresh Green</button>
+                <button type="button" class="btn outline theme-preset" data-colors='["#8B5CF6","#3B0764","#EC4899","#FAF5FF","#F3E8FF","#FFFFFF","#2E1065","#76668A","#FFFFFF","#E11D48"]'>Purple Beauty</button>
+                <button type="button" class="btn outline theme-preset" data-colors='["#0F172A","#020617","#38BDF8","#F8FAFC","#E2E8F0","#FFFFFF","#0F172A","#64748B","#FFFFFF","#F97316"]'>Premium Dark</button>
+            </div>
+        </div>
+
+        <label>Primary / Button Color
             <input type="color" name="primary_color" value="{{ old('primary_color', $siteSettings['primary_color'] ?? '#00B957') }}">
         </label>
-        <label>Secondary Color
+        <label>Secondary / Footer Color
             <input type="color" name="secondary_color" value="{{ old('secondary_color', $siteSettings['secondary_color'] ?? '#122B35') }}">
+        </label>
+        <label>Accent Color
+            <input type="color" name="accent_color" value="{{ old('accent_color', $siteSettings['accent_color'] ?? '#E11D48') }}">
+        </label>
+        <label>Hero Background
+            <input type="color" name="hero_background_color" value="{{ old('hero_background_color', $siteSettings['hero_background_color'] ?? '#EFF9F1') }}">
+        </label>
+        <label>Category Card Background
+            <input type="color" name="category_card_color" value="{{ old('category_card_color', $siteSettings['category_card_color'] ?? '#DFFFE5') }}">
+        </label>
+        <label>Page Background
+            <input type="color" name="page_background_color" value="{{ old('page_background_color', $siteSettings['page_background_color'] ?? '#FFFFFF') }}">
+        </label>
+        <label>Main Text
+            <input type="color" name="text_color" value="{{ old('text_color', $siteSettings['text_color'] ?? '#111111') }}">
+        </label>
+        <label>Muted Text
+            <input type="color" name="muted_text_color" value="{{ old('muted_text_color', $siteSettings['muted_text_color'] ?? '#4B5563') }}">
+        </label>
+        <label>Product/Card Background
+            <input type="color" name="card_background_color" value="{{ old('card_background_color', $siteSettings['card_background_color'] ?? '#FFFFFF') }}">
+        </label>
+        <label>Sale Badge Color
+            <input type="color" name="sale_badge_color" value="{{ old('sale_badge_color', $siteSettings['sale_badge_color'] ?? '#E11D48') }}">
         </label>
         <label>Hero Title
             <input name="hero_title" value="{{ old('hero_title', $siteSettings['hero_title'] ?? '') }}">
@@ -77,6 +114,25 @@
             <input name="hero_button_url" value="{{ old('hero_button_url', $siteSettings['hero_button_url'] ?? '/shop') }}">
         </label>
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const names = [
+            'primary_color','secondary_color','accent_color','hero_background_color',
+            'category_card_color','page_background_color','text_color','muted_text_color',
+            'card_background_color','sale_badge_color'
+        ];
+        document.querySelectorAll('.theme-preset').forEach(button => {
+            button.addEventListener('click', () => {
+                const colors = JSON.parse(button.dataset.colors || '[]');
+                names.forEach((name, i) => {
+                    const input = document.querySelector('[name="' + name + '"]');
+                    if (input && colors[i]) input.value = colors[i];
+                });
+            });
+        });
+    });
+    </script>
 
     <div id="footer-settings" class="panel form-grid">
         <h2 class="span-2">Footer (Admin-controlled)</h2>
