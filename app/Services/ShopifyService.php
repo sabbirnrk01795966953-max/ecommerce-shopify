@@ -387,16 +387,19 @@ GQL;
 
     private function graphql(string $domain, string $token, string $version, string $query, array $variables = []): array
     {
+        $payload = ['query' => $query];
+
+        if ($variables !== []) {
+            $payload['variables'] = $variables;
+        }
+
         $response = Http::timeout(45)
             ->acceptJson()
             ->withHeaders([
                 'X-Shopify-Access-Token' => $token,
                 'Content-Type' => 'application/json',
             ])
-            ->post("https://{$domain}/admin/api/{$version}/graphql.json", [
-                'query' => $query,
-                'variables' => $variables,
-            ]);
+            ->post("https://{$domain}/admin/api/{$version}/graphql.json", $payload);
 
         if (! $response->successful()) {
             throw new RuntimeException('Shopify API returned HTTP '.$response->status().'.');
