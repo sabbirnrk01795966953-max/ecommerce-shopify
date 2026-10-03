@@ -18,32 +18,35 @@ class ShopifyService
     {
         $domain = $this->normalizeDomain((string) Setting::getValue('shopify_store_domain', ''));
         $version = trim((string) Setting::getValue('shopify_api_version', '2026-10')) ?: '2026-10';
-        $encrypted = trim((string) Setting::getValue('shopify_access_token_encrypted', ''));
+        $clientId = trim((string) Setting::getValue('shopify_client_id', ''));
+        $encrypted = trim((string) Setting::getValue('shopify_client_secret_encrypted', ''));
 
-        $token = '';
+        $clientSecret = '';
         if ($encrypted !== '') {
             try {
-                $token = Crypt::decryptString($encrypted);
+                $clientSecret = Crypt::decryptString($encrypted);
             } catch (\Throwable) {
-                $token = '';
+                $clientSecret = '';
             }
         }
 
-        return compact('domain', 'version', 'token');
+        return compact('domain', 'version', 'clientId', 'clientSecret');
     }
 
-    public function testConnection(?string $domain = null, ?string $token = null, ?string $version = null): array
+    public function testConnection(?string $domain = null, ?string $clientId = null, ?string $clientSecret = null, ?string $version = null): array
     {
         $saved = $this->connection();
         $domain = $this->normalizeDomain($domain ?: $saved['domain']);
-        $token = trim((string) ($token ?: $saved['token']));
+        $clientId = trim((string) ($clientId ?: $saved['clientId']));
+        $clientSecret = trim((string) ($clientSecret ?: $saved['clientSecret']));
         $version = trim((string) ($version ?: $saved['version'])) ?: '2026-10';
 
-        if ($domain === '' || $token === '') {
-            return ['ok' => false, 'message' => 'Shopify store domain and Admin API token are required.'];
+        if ($domain === '' || $clientId === '' || $clientSecret === '') {
+            return ['ok' => false, 'message' => 'Shopify store domain, Client ID and Client secret are required.'];
         }
 
         try {
+            $token = $this->accessToken($domain, $clientId, $clientSecret);
             $data = $this->graphql($domain, $token, $version, <<<'GQL'
 query ShopifyConnectionTest {
   shop {
@@ -68,9 +71,15 @@ GQL);
     {
         $connection = $this->connection();
 
-        if ($connection['domain'] === '' || $connection['token'] === '') {
+        if ($connection['domain'] === '' || $connection['clientId'] === '' || $connection['clientSecret'] === '') {
             throw new RuntimeException('Shopify connection is not configured.');
         }
+
+        $token = $this->accessToken(
+            $connection['domain'],
+            $connection['clientId'],
+            $connection['clientSecret']
+        );
 
         $query = <<<'GQL'
 query ShopifyProducts($cursor: String) {
@@ -150,7 +159,7 @@ GQL;
 
         $data = $this->graphql(
             $connection['domain'],
-            $connection['token'],
+            $token,
             $connection['version'],
             $query,
             ['cursor' => $cursor]
@@ -351,6 +360,29 @@ GQL;
         }
 
         return $candidate;
+    }
+
+    private function accessToken(string $domain, string $clientId, string $clientSecret): string
+    {
+        $response = Http::asForm()
+            ->timeout(30)
+            ->post("https://{$domain}/admin/oauth/access_token", [
+                'grant_type' => 'client_credentials',
+                'client_id' => $clientId,
+                'client_secret' => $clientSecret,
+            ]);
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Shopify authentication failed with HTTP '.$response->status().'.');
+        }
+
+        $token = trim((string) $response->json('access_token'));
+
+        if ($token === '') {
+            throw new RuntimeException('Shopify did not return an access token.');
+        }
+
+        return $token;
     }
 
     private function graphql(string $domain, string $token, string $version, string $query, array $variables = []): array
