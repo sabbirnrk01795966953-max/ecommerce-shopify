@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\SubcategoryController as AdminSubcategoryController;
+use App\Http\Controllers\Admin\ShopifyController as AdminShopifyController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CheckoutController;
@@ -50,6 +51,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth','admin'])->group(func
     Route::patch('/orders/{order}',[AdminOrderController::class,'update'])->name('orders.update');
     Route::delete('/orders/{order}',[AdminOrderController::class,'destroy'])->name('orders.destroy');
     Route::post('/orders/{order}/resend-oms',[AdminOrderController::class,'resend'])->name('orders.resend-oms');
+    Route::get('/shopify',[AdminShopifyController::class,'index'])->name('shopify.index');
+    Route::post('/shopify/save',[AdminShopifyController::class,'save'])->name('shopify.save');
+    Route::post('/shopify/test',[AdminShopifyController::class,'test'])->name('shopify.test');
+    Route::post('/shopify/sync-batch',[AdminShopifyController::class,'syncBatch'])->name('shopify.sync-batch');
     Route::get('/settings',[AdminSettingsController::class,'edit'])->name('settings.edit');
     Route::post('/settings/save-oms',[AdminSettingsController::class,'saveOms'])->name('settings.save-oms');
     Route::post('/settings/test-oms',[AdminSettingsController::class,'testOms'])->name('settings.test-oms');
