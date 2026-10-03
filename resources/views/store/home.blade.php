@@ -53,7 +53,7 @@
 
                 <div class="category-links">
                     @foreach($category->subcategories->take(3) as $sub)
-                        <a href="{{ route('subcategory.show', $sub->slug) }}">
+                        <a href="{{ route('collection.show', $sub->slug) }}">
                             {{ $sub->name_bn }}
                         </a>
                     @endforeach
