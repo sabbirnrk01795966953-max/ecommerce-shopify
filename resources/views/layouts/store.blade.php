@@ -192,7 +192,7 @@
             <a
                 href="{{ $category->subcategories->first()
                     ? route(
-                        'subcategory.show',
+                        'collection.show',
                         $category->subcategories->first()->slug
                     )
                     : route('shop')
@@ -275,7 +275,7 @@
 
         @foreach($category->subcategories as $sub)
 
-            <a href="{{ route('subcategory.show', $sub->slug) }}">
+            <a href="{{ route('collection.show', $sub->slug) }}">
                 — {{ $sub->name_bn }}
             </a>
 
