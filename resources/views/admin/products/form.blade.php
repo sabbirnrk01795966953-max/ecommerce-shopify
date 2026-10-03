@@ -52,8 +52,8 @@
             </label>
 
             <label class="span-2">
-                Last URL
-                <small>ফাঁকা রাখলে নাম থেকে অটো তৈরি হবে। নিজের URL দিলে শুধু শেষ অংশ লিখুন।</small>
+                Product URL
+                <small>Admin এখানে product slug সেট করবেন। ফাঁকা রাখলে নাম থেকে অটো তৈরি হবে। নিজের URL দিলে শুধু শেষ অংশ লিখুন।</small>
                 <div class="url-field">
                     <span>/product/</span>
                     <input
