@@ -319,9 +319,10 @@ GQL;
 
         $title = trim((string) ($collection['title'] ?? 'Shopify Collection'));
         $handle = trim((string) ($collection['handle'] ?? '')) ?: Str::slug($title);
+        $slug = 'shopify-'.(Str::slug($handle) ?: 'collection');
 
-        $subcategory = Subcategory::query()->firstOrCreate(
-            ['category_id' => $category->id, 'slug' => $this->uniqueSubcategorySlug($handle)],
+        $subcategory = Subcategory::query()->updateOrCreate(
+            ['category_id' => $category->id, 'slug' => $slug],
             [
                 'name_bn' => $title,
                 'name_en' => $title,
@@ -331,19 +332,6 @@ GQL;
         );
 
         return $subcategory->id;
-    }
-
-    private function uniqueSubcategorySlug(string $base): string
-    {
-        $base = Str::slug($base) ?: 'shopify-collection';
-        $candidate = $base;
-        $i = 2;
-
-        while (Subcategory::query()->where('slug', $candidate)->exists()) {
-            $candidate = $base.'-'.$i++;
-        }
-
-        return $candidate;
     }
 
     private function uniqueParentSku(?string $sku, string $shopifyId): string
