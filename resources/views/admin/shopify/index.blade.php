@@ -19,9 +19,13 @@
         <input id="shopifyApiVersion" value="{{ $shopify['api_version'] ?: '2026-10' }}" placeholder="2026-10">
     </label>
 
-    <label>New Admin API Access Token
-        <input id="shopifyToken" type="password" value="" autocomplete="off" placeholder="{{ $shopify['token_saved'] ? 'Token already saved — leave blank to keep it' : 'shpat_...' }}">
-        <small>{{ $shopify['token_saved'] ? '✓ Token saved' : '⚠ No token saved' }}</small>
+    <label>Client ID
+        <input id="shopifyClientId" value="{{ $shopify['client_id'] ?? '' }}" autocomplete="off" placeholder="Paste Client ID">
+    </label>
+
+    <label>Client Secret
+        <input id="shopifyClientSecret" type="password" value="" autocomplete="off" placeholder="{{ $shopify['client_secret_saved'] ? 'Secret already saved — leave blank to keep it' : 'Paste Client Secret' }}">
+        <small>{{ $shopify['client_secret_saved'] ? '✓ Client secret saved securely' : '⚠ No Client secret saved' }}</small>
     </label>
 
     <div class="span-2" style="display:flex;gap:10px;flex-wrap:wrap">
@@ -64,7 +68,8 @@
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
     const domain = document.getElementById('shopifyDomain');
     const version = document.getElementById('shopifyApiVersion');
-    const token = document.getElementById('shopifyToken');
+    const clientId = document.getElementById('shopifyClientId');
+    const clientSecret = document.getElementById('shopifyClientSecret');
     const result = document.getElementById('shopifyResult');
     const syncResult = document.getElementById('shopifySyncResult');
     const save = document.getElementById('shopifySave');
@@ -101,9 +106,10 @@
             const data = await jsonPost(@json(route('admin.shopify.save')), {
                 domain: domain.value.trim(),
                 api_version: version.value.trim(),
-                token: token.value.trim(),
+                client_id: clientId.value.trim(),
+                client_secret: clientSecret.value.trim(),
             });
-            token.value = '';
+            clientSecret.value = '';
             show(result, data.message);
         } catch (e) {
             show(result, e.message, false);
@@ -118,7 +124,8 @@
             const data = await jsonPost(@json(route('admin.shopify.test')), {
                 domain: domain.value.trim(),
                 api_version: version.value.trim(),
-                token: token.value.trim(),
+                client_id: clientId.value.trim(),
+                client_secret: clientSecret.value.trim(),
             });
             const shop = data.shop || {};
             show(result, data.message + (shop.name ? ' Store: ' + shop.name + ' (' + shop.myshopifyDomain + ')' : ''));
