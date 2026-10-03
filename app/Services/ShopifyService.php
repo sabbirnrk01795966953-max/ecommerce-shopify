@@ -71,6 +71,10 @@ GQL);
     {
         $connection = $this->connection();
 
+        // Upgrade legacy imported collection slugs such as
+        // "shopify-code-1242" to Shopify's real handle "code-1242".
+        $this->cleanupLegacyShopifyCollectionSlugs();
+
         if ($connection['domain'] === '' || $connection['clientId'] === '' || $connection['clientSecret'] === '') {
             throw new RuntimeException('Shopify connection is not configured.');
         }
@@ -214,7 +218,10 @@ GQL;
             $collections = $node['collections']['nodes'] ?? [];
             $subcategoryId = $existing?->subcategory_id;
 
-            if (! $subcategoryId && ! empty($collections)) {
+            // Always reconcile the Shopify primary collection. Older imports
+            // already have a subcategory_id, so only checking empty IDs would
+            // permanently keep legacy "shopify-*" slugs.
+            if (! empty($collections)) {
                 $subcategoryId = $this->syncPrimaryCollection($collections[0]);
             }
 
@@ -366,6 +373,45 @@ GQL;
         $subcategory->save();
 
         return $subcategory->id;
+    }
+
+    private function cleanupLegacyShopifyCollectionSlugs(): void
+    {
+        $category = Category::query()->where('slug', 'shopify-collections')->first();
+
+        if (! $category) {
+            return;
+        }
+
+        Subcategory::query()
+            ->where('category_id', $category->id)
+            ->where('slug', 'like', 'shopify-%')
+            ->orderBy('id')
+            ->chunkById(100, function ($subcategories) {
+                foreach ($subcategories as $subcategory) {
+                    $current = (string) $subcategory->slug;
+
+                    if (! str_starts_with($current, 'shopify-')) {
+                        continue;
+                    }
+
+                    $target = Str::slug(substr($current, strlen('shopify-')));
+
+                    if ($target === '') {
+                        continue;
+                    }
+
+                    $conflict = Subcategory::query()
+                        ->where('slug', $target)
+                        ->where('id', '!=', $subcategory->id)
+                        ->exists();
+
+                    if (! $conflict) {
+                        $subcategory->slug = $target;
+                        $subcategory->save();
+                    }
+                }
+            });
     }
 
     private function uniqueParentSku(?string $sku, string $shopifyId): string
