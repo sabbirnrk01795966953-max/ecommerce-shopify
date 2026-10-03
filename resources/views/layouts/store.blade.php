@@ -18,6 +18,14 @@
         :root{
             --brand:{{ $siteSettings['primary_color'] ?? '#00B957' }};
             --brand-dark:{{ $siteSettings['secondary_color'] ?? '#122B35' }};
+            --accent:{{ $siteSettings['accent_color'] ?? '#E11D48' }};
+            --hero-bg:{{ $siteSettings['hero_background_color'] ?? '#EFF9F1' }};
+            --category-bg:{{ $siteSettings['category_card_color'] ?? '#DFFFE5' }};
+            --page-bg:{{ $siteSettings['page_background_color'] ?? '#FFFFFF' }};
+            --text:{{ $siteSettings['text_color'] ?? '#111111' }};
+            --muted:{{ $siteSettings['muted_text_color'] ?? '#4B5563' }};
+            --card-bg:{{ $siteSettings['card_background_color'] ?? '#FFFFFF' }};
+            --sale:{{ $siteSettings['sale_badge_color'] ?? '#E11D48' }};
         }
     </style>
 
