@@ -49,7 +49,7 @@
                     {{ $category->icon ?: '🛍️' }}
                 </div>
 
-                <b>{{ $category->name_bn }}</b>
+                <b><a href="{{ route('collection.show', $category->slug) }}">{{ $category->name_bn }}</a></b>
 
                 <div class="category-links">
                     @foreach($category->subcategories->take(3) as $sub)
