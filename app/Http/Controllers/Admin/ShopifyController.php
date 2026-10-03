@@ -18,7 +18,8 @@ class ShopifyController extends Controller
             'shopify' => [
                 'domain' => Setting::getValue('shopify_store_domain', ''),
                 'api_version' => Setting::getValue('shopify_api_version', '2026-10'),
-                'token_saved' => trim((string) Setting::getValue('shopify_access_token_encrypted', '')) !== '',
+                'client_id' => Setting::getValue('shopify_client_id', ''),
+                'client_secret_saved' => trim((string) Setting::getValue('shopify_client_secret_encrypted', '')) !== '',
                 'last_sync_at' => Setting::getValue('shopify_last_sync_at', ''),
                 'imported_products' => Product::query()->whereNotNull('shopify_product_id')->count(),
             ],
@@ -30,7 +31,8 @@ class ShopifyController extends Controller
         $data = $request->validate([
             'domain' => ['required', 'string', 'max:255'],
             'api_version' => ['required', 'regex:/^\d{4}-\d{2}$/'],
-            'token' => ['nullable', 'string', 'max:5000'],
+            'client_id' => ['required', 'string', 'max:255'],
+            'client_secret' => ['nullable', 'string', 'max:5000'],
         ]);
 
         $domain = trim(strtolower((string) $data['domain']));
@@ -40,14 +42,16 @@ class ShopifyController extends Controller
         Setting::setValue('shopify_store_domain', $domain);
         Setting::setValue('shopify_api_version', $data['api_version']);
 
-        if (! empty($data['token'])) {
-            Setting::setValue('shopify_access_token_encrypted', Crypt::encryptString(trim($data['token'])));
+        Setting::setValue('shopify_client_id', trim($data['client_id']));
+
+        if (! empty($data['client_secret'])) {
+            Setting::setValue('shopify_client_secret_encrypted', Crypt::encryptString(trim($data['client_secret'])));
         }
 
         return response()->json([
             'ok' => true,
             'message' => 'Shopify connection settings saved.',
-            'token_saved' => trim((string) Setting::getValue('shopify_access_token_encrypted', '')) !== '',
+            'client_secret_saved' => trim((string) Setting::getValue('shopify_client_secret_encrypted', '')) !== '',
         ]);
     }
 
@@ -56,12 +60,14 @@ class ShopifyController extends Controller
         $data = $request->validate([
             'domain' => ['nullable', 'string', 'max:255'],
             'api_version' => ['nullable', 'regex:/^\d{4}-\d{2}$/'],
-            'token' => ['nullable', 'string', 'max:5000'],
+            'client_id' => ['nullable', 'string', 'max:255'],
+            'client_secret' => ['nullable', 'string', 'max:5000'],
         ]);
 
         $result = $shopify->testConnection(
             $data['domain'] ?? null,
-            $data['token'] ?? null,
+            $data['client_id'] ?? null,
+            $data['client_secret'] ?? null,
             $data['api_version'] ?? null
         );
 
