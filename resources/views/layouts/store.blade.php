@@ -189,15 +189,7 @@
 
         @foreach(($navCategories ?? collect())->take(5) as $category)
 
-            <a
-                href="{{ $category->subcategories->first()
-                    ? route(
-                        'collection.show',
-                        $category->subcategories->first()->slug
-                    )
-                    : route('shop')
-                }}"
-            >
+            <a href="{{ route('collection.show', $category->slug) }}">
                 {{ $category->name_bn }}
             </a>
 
@@ -269,9 +261,9 @@
 
     @foreach(($navCategories ?? collect()) as $category)
 
-        <span class="menu-label">
+        <a class="menu-label" href="{{ route('collection.show', $category->slug) }}">
             {{ $category->name_bn }}
-        </span>
+        </a>
 
         @foreach($category->subcategories as $sub)
 
