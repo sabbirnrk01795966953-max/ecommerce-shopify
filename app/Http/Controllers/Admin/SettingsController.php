@@ -34,6 +34,14 @@ class SettingsController extends Controller
             'site_subtitle' => 'nullable|string|max:255',
             'primary_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
             'secondary_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'accent_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'hero_background_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'category_card_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'page_background_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'text_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'muted_text_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'card_background_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'sale_badge_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
             'help_line' => 'nullable|string|max:50',
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:190',
@@ -64,7 +72,9 @@ class SettingsController extends Controller
         ]);
 
         $normalKeys = [
-            'site_name', 'site_subtitle', 'primary_color', 'secondary_color',
+            'site_name', 'site_subtitle', 'primary_color', 'secondary_color', 'accent_color',
+            'hero_background_color', 'category_card_color', 'page_background_color', 'text_color',
+            'muted_text_color', 'card_background_color', 'sale_badge_color',
             'help_line', 'phone', 'email', 'address', 'facebook_url', 'instagram_url',
             'hero_title', 'hero_subtitle', 'hero_button_text', 'hero_button_url',
             'shipping_inside_dhaka', 'shipping_outside_dhaka',
