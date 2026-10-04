@@ -39,6 +39,24 @@
     </div>
 </section>
 
+
+<section class="container storefront-search-section">
+    <form action="{{ route('shop') }}" method="get" class="storefront-search-form" role="search">
+        <div class="storefront-search-box">
+            <span class="storefront-search-icon" aria-hidden="true">⌕</span>
+            <input
+                type="search"
+                name="q"
+                value=""
+                placeholder="পণ্যের নাম বা SKU দিয়ে খুঁজুন"
+                aria-label="পণ্য খুঁজুন"
+            >
+            <button type="submit" class="btn primary">খুঁজুন</button>
+        </div>
+        <small>Product name অথবা SKU লিখে search করুন</small>
+    </form>
+</section>
+
 <section class="container section">
     <h2 class="section-title">ক্যাটাগরি অনুযায়ী শপ করুন</h2>
 
