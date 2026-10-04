@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductImage;
+use App\Models\ProductVariant;
 use App\Models\Setting;
 use App\Models\Subcategory;
 use Illuminate\Support\Facades\Crypt;
@@ -173,15 +175,25 @@ GQL;
         $nodes = $connectionData['nodes'] ?? [];
 
         $stats = ['processed' => 0, 'created' => 0, 'updated' => 0, 'failed' => 0];
+        $failures = [];
 
         foreach ($nodes as $node) {
             try {
                 $created = $this->syncProduct($node);
                 $stats['processed']++;
                 $stats[$created ? 'created' : 'updated']++;
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
                 $stats['processed']++;
                 $stats['failed']++;
+
+                $failures[] = [
+                    'shopify_product_id' => (string) ($node['id'] ?? ''),
+                    'title' => (string) ($node['title'] ?? 'Unknown product'),
+                    'handle' => (string) ($node['handle'] ?? ''),
+                    'error' => $e->getMessage(),
+                ];
+
+                report($e);
             }
         }
 
@@ -193,6 +205,7 @@ GQL;
             'has_next_page' => (bool) data_get($connectionData, 'pageInfo.hasNextPage', false),
             'next_cursor' => data_get($connectionData, 'pageInfo.endCursor'),
             'last_sync_at' => Setting::getValue('shopify_last_sync_at'),
+            'failures' => $failures,
         ];
     }
 
@@ -211,8 +224,8 @@ GQL;
             $firstVariant = $variants[0] ?? [];
 
             $stock = collect($variants)->sum(fn ($v) => max(0, (int) ($v['inventoryQuantity'] ?? 0)));
-            $title = trim((string) ($node['title'] ?? 'Shopify Product'));
-            $handle = trim((string) ($node['handle'] ?? ''));
+            $title = Str::limit(trim((string) ($node['title'] ?? 'Shopify Product')), 255, '');
+            $handle = Str::limit(trim((string) ($node['handle'] ?? '')), 255, '');
             $slugBase = $handle !== '' ? $handle : Str::slug($title);
 
             $collections = $node['collections']['nodes'] ?? [];
@@ -231,8 +244,8 @@ GQL;
             $payload = [
                 'shopify_product_id' => $shopifyId,
                 'shopify_handle' => $handle ?: null,
-                'shopify_vendor' => $node['vendor'] ?? null,
-                'shopify_product_type' => $node['productType'] ?? null,
+                'shopify_vendor' => filled($node['vendor'] ?? null) ? Str::limit((string) $node['vendor'], 255, '') : null,
+                'shopify_product_type' => filled($node['productType'] ?? null) ? Str::limit((string) $node['productType'], 255, '') : null,
                 'shopify_status' => $node['status'] ?? null,
                 'shopify_tags' => json_encode($node['tags'] ?? [], JSON_UNESCAPED_UNICODE),
                 'shopify_options' => json_encode($node['options'] ?? [], JSON_UNESCAPED_UNICODE),
@@ -246,7 +259,7 @@ GQL;
                 'description_html' => $descriptionHtml,
                 'stock_qty' => $stock,
                 'is_active' => strtoupper((string) ($node['status'] ?? 'ACTIVE')) === 'ACTIVE',
-                'meta_title' => data_get($node, 'seo.title') ?: $title,
+                'meta_title' => Str::limit((string) (data_get($node, 'seo.title') ?: $title), 255, ''),
                 'meta_description' => data_get($node, 'seo.description') ?: Str::limit(trim(strip_tags($descriptionHtml)), 500, ''),
                 'main_image_url' => $featuredUrl ?: null,
                 'shopify_synced_at' => now(),
@@ -269,12 +282,13 @@ GQL;
                 }
 
                 $seenVariantIds[] = $variantId;
-                $product->variants()->updateOrCreate(
+                ProductVariant::query()->updateOrCreate(
                     ['shopify_variant_id' => $variantId],
                     [
-                        'title' => $variant['title'] ?? null,
-                        'sku' => trim((string) ($variant['sku'] ?? '')) ?: null,
-                        'barcode' => trim((string) ($variant['barcode'] ?? '')) ?: null,
+                        'product_id' => $product->id,
+                        'title' => Str::limit((string) ($variant['title'] ?? ''), 255, ''),
+                        'sku' => ($sku = trim((string) ($variant['sku'] ?? ''))) !== '' ? Str::limit($sku, 255, '') : null,
+                        'barcode' => ($barcode = trim((string) ($variant['barcode'] ?? ''))) !== '' ? Str::limit($barcode, 255, '') : null,
                         'price' => (float) ($variant['price'] ?? 0),
                         'compare_price' => filled($variant['compareAtPrice'] ?? null) ? (float) $variant['compareAtPrice'] : null,
                         'inventory_qty' => (int) ($variant['inventoryQuantity'] ?? 0),
@@ -298,12 +312,13 @@ GQL;
                 }
 
                 $seenMediaIds[] = $mediaId;
-                $product->images()->updateOrCreate(
+                ProductImage::query()->updateOrCreate(
                     ['shopify_media_id' => $mediaId],
                     [
+                        'product_id' => $product->id,
                         'path' => '',
                         'source_url' => $url,
-                        'alt_text' => data_get($media, 'image.altText') ?: $title,
+                        'alt_text' => Str::limit((string) (data_get($media, 'image.altText') ?: $title), 255, ''),
                         'sort_order' => $index,
                     ]
                 );
@@ -333,7 +348,7 @@ GQL;
             ]
         );
 
-        $title = trim((string) ($collection['title'] ?? 'Shopify Collection'));
+        $title = Str::limit(trim((string) ($collection['title'] ?? 'Shopify Collection')), 255, '');
         $handle = trim((string) ($collection['handle'] ?? '')) ?: Str::slug($title);
         $slug = Str::slug($handle) ?: 'collection';
         $legacySlug = 'shopify-'.$slug;
