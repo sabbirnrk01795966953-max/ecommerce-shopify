@@ -95,3 +95,85 @@ body,.product-name,.page-title,.section-title,.product-info h1{color:var(--text)
   .storefront-search-box .btn{min-width:auto;padding:10px 13px}
   .shop-toolbar{margin-bottom:18px}
 }
+
+
+/* Modern storefront search redesign */
+.modern-search-form{max-width:760px;margin:0 auto}
+.modern-search-box{
+  display:flex;
+  align-items:center;
+  width:100%;
+  min-height:60px;
+  padding:6px;
+  border:1px solid color-mix(in srgb,var(--brand) 22%,#dfe3e8);
+  border-radius:18px;
+  background:color-mix(in srgb,var(--card-bg) 96%,var(--brand) 4%);
+  box-shadow:0 12px 34px color-mix(in srgb,var(--brand) 12%,transparent);
+  transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease,background .2s ease;
+}
+.modern-search-box:focus-within{
+  border-color:var(--brand);
+  box-shadow:0 16px 42px color-mix(in srgb,var(--brand) 20%,transparent);
+  transform:translateY(-1px);
+  background:var(--card-bg);
+}
+.modern-search-icon{
+  flex:0 0 48px;
+  display:grid;
+  place-items:center;
+  color:var(--brand);
+}
+.modern-search-input{
+  min-width:0;
+  flex:1;
+  height:46px;
+  border:0!important;
+  outline:0!important;
+  background:transparent!important;
+  padding:0 10px!important;
+  color:var(--text);
+  font-size:15px;
+  line-height:1.2;
+}
+.modern-search-input::placeholder{color:color-mix(in srgb,var(--muted) 72%,white)}
+.modern-search-btn{
+  height:48px;
+  padding:0 24px;
+  border:0;
+  border-radius:14px;
+  background:linear-gradient(135deg,var(--brand),color-mix(in srgb,var(--brand) 78%,var(--brand-dark)));
+  color:#fff;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+  box-shadow:0 8px 20px color-mix(in srgb,var(--brand) 22%,transparent);
+  transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;
+}
+.modern-search-btn:hover{transform:translateY(-1px);box-shadow:0 12px 24px color-mix(in srgb,var(--brand) 28%,transparent);filter:brightness(.98)}
+.modern-search-help{display:block;margin:9px 4px 0!important;color:var(--muted)!important;font-size:13px!important}
+.shop-search-form{max-width:760px}
+.shop-search-form .modern-search-box{min-height:56px;border-radius:16px}
+.shop-search-form .modern-search-input{height:42px}
+.shop-search-form .modern-search-btn{height:44px}
+.storefront-search-clear{
+  flex:0 0 36px;
+  width:36px;
+  height:36px;
+  margin-right:4px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:color-mix(in srgb,var(--muted) 10%,white);
+  color:var(--muted);
+  font-size:22px;
+  line-height:1;
+}
+.storefront-search-clear:hover{background:color-mix(in srgb,var(--brand) 10%,white);color:var(--brand)}
+@media(max-width:720px){
+  .modern-search-form{max-width:none}
+  .modern-search-box{min-height:54px;padding:5px;border-radius:15px}
+  .modern-search-icon{flex-basis:40px}
+  .modern-search-input{height:42px;font-size:14px;padding:0 6px!important}
+  .modern-search-btn{height:42px;padding:0 16px;border-radius:12px}
+  .modern-search-help{font-size:12px!important;margin-top:7px!important}
+}
