@@ -20,11 +20,17 @@ class ProductController extends Controller
         $q = Product::query()->with('subcategory');
 
         if ($r->filled('q')) {
-            $term = $r->q;
-            $q->where(fn ($x) => $x
-                ->where('name_bn', 'like', "%$term%")
-                ->orWhere('name_en', 'like', "%$term%")
-                ->orWhere('sku', 'like', "%$term%"));
+            $term = trim((string) $r->q);
+            $like = '%'.$term.'%';
+
+            $q->where(function ($x) use ($like) {
+                $x->where('name_bn', 'like', $like)
+                    ->orWhere('name_en', 'like', $like)
+                    ->orWhere('sku', 'like', $like)
+                    ->orWhere('slug', 'like', $like)
+                    ->orWhere('shopify_handle', 'like', $like)
+                    ->orWhere('shopify_product_id', 'like', $like);
+            });
         }
 
         return view('admin.products.index', [
