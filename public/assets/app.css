@@ -65,3 +65,33 @@ body,.product-name,.page-title,.section-title,.product-info h1{color:var(--text)
 .sale-badge{background:var(--sale)}
 .badge{background:var(--accent)}
 .nav a:hover,.category-sidebar a:hover,.eyebrow{color:var(--brand)}
+
+
+/* Storefront product search */
+.storefront-search-section{padding:28px 0 0}
+.storefront-search-form{width:100%}
+.storefront-search-form>small{display:block;margin-top:7px;color:var(--muted);font-size:12px}
+.storefront-search-box{display:flex;align-items:center;width:100%;min-height:52px;border:1px solid #dfe3e8;border-radius:12px;background:var(--card-bg);box-shadow:0 6px 20px rgba(22,34,51,.05);overflow:hidden}
+.storefront-search-icon{flex:0 0 46px;display:grid;place-items:center;color:var(--muted);font-size:22px}
+.storefront-search-box input{min-width:0;flex:1;border:0;outline:0;background:transparent;padding:13px 8px;font-size:15px;color:var(--text)}
+.storefront-search-box input::placeholder{color:#98a2b3}
+.storefront-search-box .btn{margin:5px;border-radius:9px;min-width:92px}
+.storefront-search-clear{flex:0 0 34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#667085;background:#f2f4f7;font-size:21px;margin-right:2px}
+.shop-results{min-width:0}
+.shop-toolbar{display:grid;grid-template-columns:minmax(150px,.45fr) minmax(320px,1fr);align-items:center;gap:22px;margin-bottom:26px}
+.shop-result-count{font-size:15px}
+.shop-result-count span{display:block;margin-top:5px;color:var(--muted);font-size:12px}
+.shop-search-form{max-width:680px;justify-self:end}
+.shop-search-empty{margin-top:10px}
+@media(max-width:900px){
+  .shop-toolbar{grid-template-columns:1fr;gap:12px}
+  .shop-search-form{max-width:none;justify-self:stretch}
+}
+@media(max-width:720px){
+  .storefront-search-section{padding:18px 0 0}
+  .storefront-search-box{min-height:48px;border-radius:10px}
+  .storefront-search-icon{flex-basis:38px;font-size:19px}
+  .storefront-search-box input{padding:11px 4px;font-size:13px}
+  .storefront-search-box .btn{min-width:auto;padding:10px 13px}
+  .shop-toolbar{margin-bottom:18px}
+}
