@@ -12,7 +12,7 @@
         content="@yield('meta_description', $siteSettings['site_subtitle'] ?? '')"
     >
 
-    <link rel="stylesheet" href="{{ asset('assets/app.css') }}?v=1.7.1">
+    <link rel="stylesheet" href="{{ asset('assets/app.css') }}?v=1.8.0">
 
     <style>
         :root{
@@ -500,7 +500,7 @@ window.storeRoutes = {
 
 
 <script
-    src="{{ asset('assets/app.js') }}?v=1.7.1"
+    src="{{ asset('assets/app.js') }}?v=1.8.0"
     defer
 ></script>
 
