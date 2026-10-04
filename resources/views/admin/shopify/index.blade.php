@@ -95,6 +95,13 @@
         return data;
     };
 
+    const escapeHtml = (value) => String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+
     const show = (box, message, ok = true) => {
         box.hidden = false;
         box.innerHTML = '<b>' + (ok ? '✓ ' : '✕ ') + '</b>' + String(message);
@@ -140,6 +147,7 @@
         sync.disabled = true;
         let cursor = null;
         let totals = { processed:0, created:0, updated:0, failed:0 };
+        let failures = [];
         syncResult.hidden = false;
 
         try {
@@ -151,6 +159,10 @@
                     totals[key] += Number(data.stats?.[key] || 0);
                 }
 
+                if (Array.isArray(data.failures)) {
+                    failures.push(...data.failures);
+                }
+
                 cursor = data.has_next_page ? data.next_cursor : null;
                 syncResult.innerHTML =
                     '<b>Syncing Shopify products...</b><br>' +
@@ -160,13 +172,31 @@
                     ' | Failed: ' + totals.failed;
             } while (cursor);
 
+            let failureHtml = '';
+            if (failures.length) {
+                failureHtml =
+                    '<details style="margin-top:12px" open>' +
+                    '<summary><b>Failed product details (' + failures.length + ')</b></summary>' +
+                    '<div style="margin-top:8px;max-height:360px;overflow:auto">' +
+                    failures.map((failure, index) =>
+                        '<div style="padding:9px 0;border-bottom:1px solid #ddd">' +
+                        '<b>' + (index + 1) + '. ' + escapeHtml(failure.title || 'Unknown product') + '</b><br>' +
+                        '<small>Handle: ' + escapeHtml(failure.handle || '-') + '</small><br>' +
+                        '<small>Shopify ID: ' + escapeHtml(failure.shopify_product_id || '-') + '</small><br>' +
+                        '<code style="white-space:pre-wrap;color:#b42318">' + escapeHtml(failure.error || 'Unknown error') + '</code>' +
+                        '</div>'
+                    ).join('') +
+                    '</div></details>';
+            }
+
             syncResult.innerHTML =
                 '<b>✓ Shopify sync complete.</b><br>' +
                 'Processed: ' + totals.processed +
                 ' | Created: ' + totals.created +
                 ' | Updated: ' + totals.updated +
                 ' | Failed: ' + totals.failed +
-                '<br>Refresh this page to see the updated imported-product count.';
+                '<br>Refresh this page to see the updated imported-product count.' +
+                failureHtml;
         } catch (e) {
             syncResult.innerHTML = '<b>✕ Sync stopped.</b><br>' + e.message;
         } finally {
