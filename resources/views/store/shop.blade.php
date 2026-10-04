@@ -29,20 +29,25 @@
                 @endif
             </div>
 
-            <form action="{{ route('shop') }}" method="get" class="storefront-search-form shop-search-form" role="search">
-                <div class="storefront-search-box">
-                    <span class="storefront-search-icon" aria-hidden="true">⌕</span>
+            <form action="{{ route('shop') }}" method="get" class="storefront-search-form shop-search-form modern-search-form" role="search">
+                <div class="storefront-search-box modern-search-box">
+                    <span class="storefront-search-icon modern-search-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" aria-hidden="true">
+                            <path d="M21 21l-4.35-4.35m1.1-5.15a6.25 6.25 0 1 1-12.5 0 6.25 6.25 0 0 1 12.5 0Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </span>
                     <input
                         type="search"
                         name="q"
                         value="{{ $search ?? '' }}"
                         placeholder="পণ্যের নাম বা SKU দিয়ে খুঁজুন"
                         aria-label="পণ্য খুঁজুন"
+                        class="modern-search-input"
                     >
                     @if(($search ?? '') !== '')
                         <a href="{{ route('shop') }}" class="storefront-search-clear" aria-label="Search clear">×</a>
                     @endif
-                    <button type="submit" class="btn primary">খুঁজুন</button>
+                    <button type="submit" class="modern-search-btn">খুঁজুন</button>
                 </div>
             </form>
         </div>
