@@ -18,8 +18,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class,'index'])->name('home');
 Route::get('/shop', [HomeController::class,'shop'])->name('shop');
-Route::get('/product/{slug}', [ProductController::class,'show'])->name('product.show');
-Route::get('/collection/{slug}', [ProductController::class,'collection'])->name('collection.show');
+Route::get('/products/{slug}', [ProductController::class,'show'])->name('product.show');
+Route::get('/collections/{slug}', [ProductController::class,'collection'])->name('collection.show');
+
+// Backward-compatible redirects for old storefront URLs.
+Route::get('/product/{slug}', fn (string $slug) => redirect()->route('product.show', $slug, 301));
+Route::get('/collection/{slug}', fn (string $slug) => redirect()->route('collection.show', $slug, 301));
 Route::get('/subcategory/{slug}', fn (string $slug) => redirect()->route('collection.show', $slug, 301));
 Route::get('/category/{slug}', fn (string $slug) => redirect()->route('collection.show', $slug, 301));
 Route::get('/cart', [CartController::class,'index'])->name('cart');
