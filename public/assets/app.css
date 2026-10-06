@@ -305,3 +305,13 @@ body,.product-name,.page-title,.section-title,.product-info h1{color:var(--text)
     font-size:13px;
   }
 }
+
+
+/* Duplicate-order protection UI */
+.checkout-blocked-title{font-size:15px;font-weight:800;color:#8a1c1c;margin-bottom:6px}
+.checkout-blocked-message{font-size:13px;line-height:1.55;color:#7a2727}
+.checkout-contact-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+.checkout-contact-btn{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 14px;border-radius:9px;text-decoration:none;font-weight:800;font-size:13px}
+.checkout-contact-btn.whatsapp{background:#25d366;color:#fff}
+.checkout-contact-btn.call{background:var(--brand);color:#fff}
+@media(max-width:720px){.checkout-contact-actions{display:grid}.checkout-contact-btn{width:100%}}
