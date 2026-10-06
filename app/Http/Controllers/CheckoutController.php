@@ -51,6 +51,21 @@ class CheckoutController extends Controller
             return back()->withErrors(['cart'=>'কার্ট খালি।']);
         }
 
+        $normalizedPhone = $this->normalizePhone($validated['phone']);
+        $ipHash = hash('sha256', (string) $request->ip());
+
+        $ipBlocked = Order::query()
+            ->where('order_ip_hash', $ipHash)
+            ->where('created_at', '>=', now()->subHours(24))
+            ->exists();
+
+        if ($ipBlocked) {
+            return $this->blockedOrderResponse(
+                $request,
+                'এই ইন্টারনেট সংযোগ/IP থেকে গত ২৪ ঘণ্টার মধ্যে একটি অর্ডার করা হয়েছে। নতুন অর্ডারের জন্য আমাদের সাথে WhatsApp বা ফোনে যোগাযোগ করুন।'
+            );
+        }
+
         $inside = (float) Setting::getValue('shipping_inside_dhaka', '60');
         $outside = (float) Setting::getValue('shipping_outside_dhaka', '120');
         $delivery = $validated['shipping_area'] === 'inside' ? $inside : $outside;
@@ -66,9 +81,37 @@ class CheckoutController extends Controller
             }
             $subtotal += (float)$p->price * (int)$line['quantity'];
         }
+        $recentSameProduct = Order::query()
+            ->where('phone_normalized', $normalizedPhone)
+            ->where('created_at', '>=', now()->subHours(48))
+            ->whereHas('items', function ($query) use ($cart) {
+                $query->whereIn('product_id', collect($cart)->pluck('product_id')->filter()->all());
+            })
+            ->with(['items' => function ($query) use ($cart) {
+                $query->whereIn('product_id', collect($cart)->pluck('product_id')->filter()->all());
+            }])
+            ->latest('id')
+            ->first();
+
+        if ($recentSameProduct) {
+            $matchedNames = $recentSameProduct->items
+                ->pluck('name')
+                ->filter()
+                ->unique()
+                ->take(3)
+                ->implode(', ');
+
+            return $this->blockedOrderResponse(
+                $request,
+                'এই ফোন নম্বর দিয়ে গত ৪৮ ঘণ্টার মধ্যে একই পণ্যের অর্ডার করা হয়েছে'
+                .($matchedNames !== '' ? ': '.$matchedNames : '')
+                .'। পুনরায় অর্ডারের জন্য আমাদের সাথে WhatsApp বা ফোনে যোগাযোগ করুন।'
+            );
+        }
+
         $purchaseEventId = $validated['event_id'] ?: 'purchase_'.Str::uuid();
 
-        $order = DB::transaction(function () use ($validated,$cart,$products,$subtotal,$delivery,$purchaseEventId) {
+        $order = DB::transaction(function () use ($validated,$cart,$products,$subtotal,$delivery,$purchaseEventId,$normalizedPhone,$ipHash) {
             // Create with a temporary unique code first so we can use the database order ID.
             // Final invoice format is always: TWN + 6 digits, e.g. TWN000123.
             $temporary = 'TMP-'.Str::uuid();
@@ -76,11 +119,12 @@ class CheckoutController extends Controller
             $order = Order::create([
                 'invoice_id'=>$temporary,
                 'external_order_id'=>$temporary,
-                'customer_name'=>$validated['customer_name'],'phone'=>$validated['phone'],
+                'customer_name'=>$validated['customer_name'],'phone'=>$validated['phone'],'phone_normalized'=>$normalizedPhone,
                 'address'=>$validated['address'],'shipping_phone'=>$validated['phone'],'shipping_customer_name'=>$validated['customer_name'],
                 'shipping_address1'=>$validated['address'],'shipping_address2'=>'','shipping_city'=>'','shipping_province'=>'','shipping_zip'=>'',
                 'shipping_country'=>'Bangladesh','email'=>$validated['email']??null,'delivery_charge'=>$delivery,'discount'=>0,'advance'=>0,
                 'subtotal'=>$subtotal,'total_amount'=>$subtotal+$delivery,'note'=>$validated['note']??null,'status'=>'PENDING','oms_status'=>'PENDING','purchase_event_id'=>$purchaseEventId,
+                'order_ip_hash'=>$ipHash,
             ]);
 
             if ($order->id > 999999) {
@@ -117,6 +161,51 @@ class CheckoutController extends Controller
         }
 
         return redirect()->route('order.success',$order->invoice_id);
+    }
+
+    private function normalizePhone(string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone) ?? '';
+
+        if (str_starts_with($digits, '880') && strlen($digits) >= 13) {
+            $digits = '0'.substr($digits, 3);
+        } elseif (str_starts_with($digits, '88') && strlen($digits) >= 13) {
+            $digits = substr($digits, 2);
+        }
+
+        return $digits;
+    }
+
+    private function blockedOrderResponse(Request $request, string $message)
+    {
+        $contact = trim((string) Setting::getValue('phone', ''));
+        if ($contact === '') {
+            $contact = trim((string) Setting::getValue('help_line', ''));
+        }
+
+        $whatsappDigits = preg_replace('/\D+/', '', $contact) ?? '';
+        if (str_starts_with($whatsappDigits, '0')) {
+            $whatsappDigits = '88'.$whatsappDigits;
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => false,
+                'order_blocked' => true,
+                'message' => $message,
+                'contact_phone' => $contact,
+                'whatsapp_url' => $whatsappDigits !== ''
+                    ? 'https://wa.me/'.$whatsappDigits.'?text='.rawurlencode('আমি ওয়েবসাইটে অর্ডার করতে চাচ্ছি। সাহায্য করুন।')
+                    : null,
+                'call_url' => $contact !== ''
+                    ? 'tel:'.preg_replace('/[^0-9+]/', '', $contact)
+                    : null,
+            ], 429);
+        }
+
+        return back()
+            ->withInput()
+            ->withErrors(['checkout' => $message]);
     }
 
     public function success(string $invoiceId)
