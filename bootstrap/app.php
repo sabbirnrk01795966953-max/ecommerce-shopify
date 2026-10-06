@@ -12,6 +12,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // This project has an admin-only authentication screen. When an
+        // authenticated admin route is opened after the session expires,
+        // always send the browser to /admin/login instead of Laravel's
+        // conventional (but undefined here) "login" route.
+        $middleware->redirectGuestsTo(fn () => route('admin.login'));
+
         $middleware->alias([
             'admin' => AdminMiddleware::class,
         ]);
