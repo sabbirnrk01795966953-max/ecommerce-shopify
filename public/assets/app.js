@@ -564,6 +564,52 @@
               );
 
           if (!response.ok) {
+            if (data.order_blocked) {
+              const box =
+                form
+                  .closest('.quick-checkout-sheet-inner')
+                  ?.querySelector('[data-checkout-errors]');
+
+              if (box) {
+                const actions = [];
+
+                if (data.whatsapp_url) {
+                  actions.push(
+                    '<a class="checkout-contact-btn whatsapp" target="_blank" rel="noopener" href="' +
+                    String(data.whatsapp_url) +
+                    '">WhatsApp-এ অর্ডার করুন</a>'
+                  );
+                }
+
+                if (data.call_url) {
+                  actions.push(
+                    '<a class="checkout-contact-btn call" href="' +
+                    String(data.call_url) +
+                    '">ফোনে অর্ডার করুন' +
+                    (data.contact_phone ? ' — ' + String(data.contact_phone) : '') +
+                    '</a>'
+                  );
+                }
+
+                box.hidden = false;
+                box.innerHTML =
+                  '<div class="checkout-blocked-title">এই অর্ডারটি অনলাইনে নেওয়া যাচ্ছে না</div>' +
+                  '<div class="checkout-blocked-message">' +
+                  String(data.message || 'আমাদের সাথে যোগাযোগ করুন।') +
+                  '</div>' +
+                  (actions.length
+                    ? '<div class="checkout-contact-actions">' + actions.join('') + '</div>'
+                    : '');
+
+                box.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'nearest'
+                });
+              }
+
+              return;
+            }
+
             showCheckoutErrors(
               form,
               data.errors || {
