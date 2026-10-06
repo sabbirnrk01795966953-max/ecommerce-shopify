@@ -12,7 +12,7 @@
         content="@yield('meta_description', $siteSettings['site_subtitle'] ?? '')"
     >
 
-    <link rel="stylesheet" href="{{ asset('assets/app.css') }}?v=1.8.0">
+    <link rel="stylesheet" href="{{ asset('assets/app.css') }}?v=1.8.1">
 
     <style>
         :root{
