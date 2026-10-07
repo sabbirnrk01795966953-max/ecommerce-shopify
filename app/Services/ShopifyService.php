@@ -349,18 +349,29 @@ GQL;
         );
 
         $title = Str::limit(trim((string) ($collection['title'] ?? 'Shopify Collection')), 255, '');
-        $handle = trim((string) ($collection['handle'] ?? '')) ?: Str::slug($title);
-        $slug = Str::slug($handle) ?: 'collection';
-        $legacySlug = 'shopify-'.$slug;
+        $handle = trim((string) ($collection['handle'] ?? ''));
 
-        // Prefer Shopify's exact collection handle as our public slug.
-        // This also upgrades older imports that used the "shopify-" prefix.
-        $subcategory = Subcategory::query()->where('slug', $slug)->first();
+        $slug = $handle !== ''
+            ? SlugService::normalizeUnicodeOrGenerate($handle, $title, 'collection')
+            : SlugService::normalizeUnicodeOrGenerate(null, $title, 'collection');
+
+        // Historical imports used Str::slug(), which transliterated Bangla/Unicode
+        // Shopify handles into Latin. Keep that value only for locating old rows.
+        $transliteratedSlug = Str::slug($handle !== '' ? $handle : $title) ?: 'collection';
+        $legacySlug = 'shopify-'.$transliteratedSlug;
+
+        // Prefer Shopify's exact handle. If an older imported row exists under
+        // either "shopify-..." or the transliterated slug, reuse that same row
+        // and upgrade its slug instead of creating a duplicate subcategory.
+        $subcategory = Subcategory::query()
+            ->where('category_id', $category->id)
+            ->where('slug', $slug)
+            ->first();
 
         if (! $subcategory) {
             $subcategory = Subcategory::query()
                 ->where('category_id', $category->id)
-                ->where('slug', $legacySlug)
+                ->whereIn('slug', [$legacySlug, $transliteratedSlug])
                 ->first();
 
             if ($subcategory) {
@@ -410,7 +421,11 @@ GQL;
                         continue;
                     }
 
-                    $target = Str::slug(substr($current, strlen('shopify-')));
+                    $target = SlugService::normalizeUnicodeOrGenerate(
+                        substr($current, strlen('shopify-')),
+                        (string) $subcategory->name_en ?: (string) $subcategory->name_bn,
+                        'collection'
+                    );
 
                     if ($target === '') {
                         continue;
