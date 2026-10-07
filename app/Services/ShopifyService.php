@@ -373,16 +373,29 @@ GQL;
                 ->where('category_id', $category->id)
                 ->whereIn('slug', [$legacySlug, $transliteratedSlug])
                 ->first();
+        }
 
-            if ($subcategory) {
-                $slugTakenByAnother = Subcategory::query()
-                    ->where('slug', $slug)
-                    ->where('id', '!=', $subcategory->id)
-                    ->exists();
+        // Some older imports damaged Bangla handles by stripping Unicode
+        // combining marks. Those broken slugs cannot reliably be reconstructed,
+        // so fall back to the Shopify collection title to identify the same row.
+        if (! $subcategory) {
+            $subcategory = Subcategory::query()
+                ->where('category_id', $category->id)
+                ->where(function ($query) use ($title) {
+                    $query->where('name_bn', $title)
+                        ->orWhere('name_en', $title);
+                })
+                ->first();
+        }
 
-                if (! $slugTakenByAnother) {
-                    $subcategory->slug = $slug;
-                }
+        if ($subcategory) {
+            $slugTakenByAnother = Subcategory::query()
+                ->where('slug', $slug)
+                ->where('id', '!=', $subcategory->id)
+                ->exists();
+
+            if (! $slugTakenByAnother) {
+                $subcategory->slug = $slug;
             }
         }
 
