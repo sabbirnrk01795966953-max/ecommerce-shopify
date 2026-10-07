@@ -42,7 +42,9 @@ class SlugService
         // plus combining marks (\pM), e.g. কার/হসন্ত/চন্দ্রবিন্দু.
         // Never strip \pM or Bangla handles become corrupted.
         $input = preg_replace('/\s+/u', '-', $input) ?? $input;
-        $input = preg_replace('/[^\pL\pM\pN\-_]+/u', '-', $input) ?? $input;
+        // Preserve Unicode symbols (\pS) as well, including emoji used in
+        // Shopify handles such as 🌟, ❤️, ✨, etc.
+        $input = preg_replace('/[^\pL\pM\pN\pS\-_]+/u', '-', $input) ?? $input;
         $input = preg_replace('/-+/u', '-', $input) ?? $input;
         $input = trim($input, '-_');
 
