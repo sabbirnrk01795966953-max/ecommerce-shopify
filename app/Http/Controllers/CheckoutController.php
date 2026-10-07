@@ -112,13 +112,11 @@ class CheckoutController extends Controller
         $purchaseEventId = $validated['event_id'] ?: 'purchase_'.Str::uuid();
 
         $order = DB::transaction(function () use ($validated,$cart,$products,$subtotal,$delivery,$purchaseEventId,$normalizedPhone,$ipHash) {
-            // Create with a temporary unique code first so we can use the database order ID.
-            // Final invoice format is always: TWN + 6 digits, e.g. TWN000123.
-            $temporary = 'TMP-'.Str::uuid();
+            $invoice = $this->nextInvoiceCode();
 
             $order = Order::create([
-                'invoice_id'=>$temporary,
-                'external_order_id'=>$temporary,
+                'invoice_id'=>$invoice,
+                'external_order_id'=>$invoice,
                 'customer_name'=>$validated['customer_name'],'phone'=>$validated['phone'],'phone_normalized'=>$normalizedPhone,
                 'address'=>$validated['address'],'shipping_phone'=>$validated['phone'],'shipping_customer_name'=>$validated['customer_name'],
                 'shipping_address1'=>$validated['address'],'shipping_address2'=>'','shipping_city'=>'','shipping_province'=>'','shipping_zip'=>'',
@@ -126,16 +124,6 @@ class CheckoutController extends Controller
                 'subtotal'=>$subtotal,'total_amount'=>$subtotal+$delivery,'note'=>$validated['note']??null,'status'=>'PENDING','oms_status'=>'PENDING','purchase_event_id'=>$purchaseEventId,
                 'order_ip_hash'=>$ipHash,
             ]);
-
-            if ($order->id > 999999) {
-                throw new RuntimeException('TWN 6-digit invoice range is exhausted.');
-            }
-
-            $invoice = 'TWN'.str_pad((string) $order->id, 6, '0', STR_PAD_LEFT);
-            $order->forceFill([
-                'invoice_id' => $invoice,
-                'external_order_id' => $invoice,
-            ])->save();
 
             foreach ($cart as $line) {
                 $p=$products->get($line['product_id']); $qty=(int)$line['quantity'];
@@ -161,6 +149,39 @@ class CheckoutController extends Controller
         }
 
         return redirect()->route('order.success',$order->invoice_id);
+    }
+
+    private function nextInvoiceCode(): string
+    {
+        $prefix = strtoupper(trim((string) Setting::getValue('invoice_prefix', 'TWN')));
+        $prefix = preg_replace('/[^A-Z0-9-]+/', '', $prefix) ?: 'TWN';
+
+        // Keep an independent counter for every prefix. If a store changes its
+        // prefix and later changes back, the old sequence continues safely.
+        $sequenceKey = 'invoice_sequence_'.strtolower(str_replace('-', '_', $prefix));
+
+        Setting::query()->firstOrCreate(
+            ['key' => $sequenceKey],
+            ['value' => '0']
+        );
+
+        $sequenceSetting = Setting::query()
+            ->where('key', $sequenceKey)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        $next = ((int) $sequenceSetting->value) + 1;
+
+        if ($next > 99999999) {
+            throw new RuntimeException('Invoice sequence range is exhausted for prefix '.$prefix.'.');
+        }
+
+        $sequenceSetting->value = (string) $next;
+        $sequenceSetting->save();
+
+        $digits = max(4, strlen((string) $next));
+
+        return $prefix.'-'.str_pad((string) $next, $digits, '0', STR_PAD_LEFT);
     }
 
     private function normalizePhone(string $phone): string
