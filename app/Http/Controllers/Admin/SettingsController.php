@@ -32,6 +32,7 @@ class SettingsController extends Controller
         $data = $request->validate([
             'site_name' => 'required|string|max:160',
             'site_subtitle' => 'nullable|string|max:255',
+            'invoice_prefix' => ['required','string','max:30','regex:/^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/'],
             'primary_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
             'secondary_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
             'accent_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
@@ -71,8 +72,10 @@ class SettingsController extends Controller
             'hero_image' => 'nullable|image|max:6144',
         ]);
 
+        $data['invoice_prefix'] = strtoupper(trim((string) $data['invoice_prefix']));
+
         $normalKeys = [
-            'site_name', 'site_subtitle', 'primary_color', 'secondary_color', 'accent_color',
+            'site_name', 'site_subtitle', 'invoice_prefix', 'primary_color', 'secondary_color', 'accent_color',
             'hero_background_color', 'category_card_color', 'page_background_color', 'text_color',
             'muted_text_color', 'card_background_color', 'sale_badge_color',
             'help_line', 'phone', 'email', 'address', 'facebook_url', 'instagram_url',
