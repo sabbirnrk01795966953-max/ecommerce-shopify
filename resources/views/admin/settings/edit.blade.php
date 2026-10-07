@@ -24,6 +24,17 @@
         <label>Subtitle
             <input name="site_subtitle" value="{{ old('site_subtitle', $siteSettings['site_subtitle'] ?? '') }}">
         </label>
+        <label>Invoice Prefix
+            <input
+                name="invoice_prefix"
+                value="{{ old('invoice_prefix', $siteSettings['invoice_prefix'] ?? 'TWN') }}"
+                placeholder="UNC05"
+                maxlength="30"
+                required
+                style="text-transform:uppercase"
+            >
+            <small>নতুন invoice হবে যেমন: <b>UNC05-0001</b>. শুধু English letter, number এবং hyphen ব্যবহার করুন।</small>
+        </label>
         <label>Help Line
             <input name="help_line" value="{{ old('help_line', $siteSettings['help_line'] ?? '') }}">
         </label>
