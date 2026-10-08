@@ -41,14 +41,29 @@
 
             <label>
                 Subcategory
-                <select name="subcategory_id">
-                    <option value="">None</option>
-                    @foreach($subcategories as $s)
-                        <option value="{{ $s->id }}" @selected(old('subcategory_id', $product->subcategory_id) == $s->id)>
-                            {{ $s->category?->name_bn }} → {{ $s->name_bn }}
-                        </option>
-                    @endforeach
-                </select>
+                <div class="searchable-select" data-searchable-select>
+                    <input
+                        type="search"
+                        class="searchable-select-input"
+                        placeholder="Search category / subcategory..."
+                        autocomplete="off"
+                        aria-label="Search subcategory"
+                    >
+                    <select name="subcategory_id" class="searchable-select-native" tabindex="-1" aria-hidden="true">
+                        <option value="">None</option>
+                        @foreach($subcategories as $s)
+                            <option
+                                value="{{ $s->id }}"
+                                data-search="{{ $s->category?->name_bn }} {{ $s->category?->name_en }} {{ $s->name_bn }} {{ $s->name_en }} {{ $s->slug }}"
+                                @selected(old('subcategory_id', $product->subcategory_id) == $s->id)
+                            >
+                                {{ $s->category?->name_bn }} → {{ $s->name_bn }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <div class="searchable-select-menu" data-searchable-select-menu hidden></div>
+                </div>
+                <small class="muted">Bangla/English category, subcategory বা slug লিখে খুঁজুন।</small>
             </label>
 
             <label class="span-2">
