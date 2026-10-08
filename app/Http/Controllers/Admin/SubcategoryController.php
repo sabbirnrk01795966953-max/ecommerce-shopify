@@ -10,7 +10,40 @@ use Illuminate\Http\Request;
 
 class SubcategoryController extends Controller
 {
-    public function index(){ return view('admin.subcategories.index',['subcategories'=>Subcategory::query()->with('category')->orderBy('sort_order')->paginate(30)]); }
+    public function index(Request $request)
+    {
+        $search = trim((string) $request->query('q', ''));
+
+        $query = Subcategory::query()->with('category');
+
+        if ($search !== '') {
+            $terms = preg_split('/\s+/u', $search, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+            foreach ($terms as $term) {
+                $like = '%'.$term.'%';
+
+                $query->where(function ($q) use ($like) {
+                    $q->where('name_bn', 'like', $like)
+                        ->orWhere('name_en', 'like', $like)
+                        ->orWhere('slug', 'like', $like)
+                        ->orWhereHas('category', function ($categoryQuery) use ($like) {
+                            $categoryQuery->where('name_bn', 'like', $like)
+                                ->orWhere('name_en', 'like', $like)
+                                ->orWhere('slug', 'like', $like);
+                        });
+                });
+            }
+        }
+
+        $subcategories = $query
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->paginate(30)
+            ->withQueryString();
+
+        return view('admin.subcategories.index', compact('subcategories'));
+    }
+
     public function create(){ return view('admin.subcategories.form',['subcategory'=>new Subcategory,'categories'=>Category::orderBy('sort_order')->get()]); }
     public function store(Request $r){ $data=$this->data($r); $data['slug']=SlugService::unique(SlugService::normalizeUnicodeOrGenerate($data['slug']??null,$data['name_en']?:$data['name_bn'],'subcategory'), Subcategory::class); if($r->hasFile('image'))$data['image_path']=$r->file('image')->store('subcategories','public'); Subcategory::create($data); return redirect()->route('admin.subcategories.index')->with('success','Subcategory created.'); }
     public function edit(Subcategory $subcategory){ return view('admin.subcategories.form',['subcategory'=>$subcategory,'categories'=>Category::orderBy('sort_order')->get()]); }
