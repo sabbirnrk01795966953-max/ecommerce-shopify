@@ -49,7 +49,7 @@
                         autocomplete="off"
                         aria-label="Search subcategory"
                     >
-                    <select name="subcategory_id" class="searchable-select-native" tabindex="-1" aria-hidden="true">
+                    <select name="subcategory_id" class="searchable-select-native" tabindex="-1" aria-hidden="true" hidden>
                         <option value="">None</option>
                         @foreach($subcategories as $s)
                             <option
