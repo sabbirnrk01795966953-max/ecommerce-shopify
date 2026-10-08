@@ -720,4 +720,120 @@
       }
     });
   });
+
+
+  // Searchable admin select v1
+  const setupSearchableSelects = () => {
+    document.querySelectorAll('[data-searchable-select]').forEach((wrap) => {
+      const input = wrap.querySelector('.searchable-select-input');
+      const select = wrap.querySelector('.searchable-select-native');
+      const menu = wrap.querySelector('[data-searchable-select-menu]');
+      if (!input || !select || !menu) return;
+
+      const options = Array.from(select.options);
+      let activeIndex = -1;
+
+      const normalize = (value) => String(value || '').toLocaleLowerCase().trim();
+
+      const selectedOption = () => options.find((option) => option.value === select.value) || options[0];
+
+      const syncSelectedText = () => {
+        const selected = selectedOption();
+        input.value = selected && selected.value ? selected.textContent.trim() : '';
+        input.placeholder = selected && selected.value ? selected.textContent.trim() : 'Search category / subcategory...';
+      };
+
+      const filteredOptions = () => {
+        const query = normalize(input.value);
+        return options.filter((option) => {
+          if (!option.value) return query === '';
+          const haystack = normalize((option.dataset.search || '') + ' ' + option.textContent);
+          if (!query) return true;
+          return query.split(/\s+/u).every((term) => haystack.includes(term));
+        });
+      };
+
+      const render = () => {
+        const visible = filteredOptions();
+        menu.innerHTML = '';
+        activeIndex = -1;
+
+        if (!visible.length) {
+          const empty = document.createElement('div');
+          empty.className = 'searchable-select-empty';
+          empty.textContent = 'No matching subcategory found';
+          menu.appendChild(empty);
+          menu.hidden = false;
+          return;
+        }
+
+        visible.forEach((option, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'searchable-select-option';
+          button.dataset.value = option.value;
+          const title = option.textContent.trim();
+          button.innerHTML = '<span></span>' + (option.value ? '<small></small>' : '');
+          button.querySelector('span').textContent = title;
+          if (option.value) {
+            button.querySelector('small').textContent = option.dataset.search || '';
+          }
+          button.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            select.value = option.value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            input.value = option.value ? title : '';
+            menu.hidden = true;
+          });
+          menu.appendChild(button);
+        });
+
+        menu.hidden = false;
+      };
+
+      input.addEventListener('focus', () => {
+        input.select();
+        render();
+      });
+
+      input.addEventListener('input', render);
+
+      input.addEventListener('keydown', (event) => {
+        const buttons = Array.from(menu.querySelectorAll('.searchable-select-option'));
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          if (menu.hidden) render();
+          activeIndex = Math.min(activeIndex + 1, buttons.length - 1);
+        } else if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          activeIndex = Math.max(activeIndex - 1, 0);
+        } else if (event.key === 'Enter' && activeIndex >= 0 && buttons[activeIndex]) {
+          event.preventDefault();
+          buttons[activeIndex].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+          return;
+        } else if (event.key === 'Escape') {
+          menu.hidden = true;
+          syncSelectedText();
+          return;
+        } else {
+          return;
+        }
+
+        buttons.forEach((button, index) => button.classList.toggle('is-active', index === activeIndex));
+        buttons[activeIndex]?.scrollIntoView({ block: 'nearest' });
+      });
+
+      document.addEventListener('mousedown', (event) => {
+        if (!wrap.contains(event.target)) {
+          menu.hidden = true;
+          syncSelectedText();
+        }
+      });
+
+      syncSelectedText();
+    });
+  };
+
+  onReady(setupSearchableSelects);
+
 })();
