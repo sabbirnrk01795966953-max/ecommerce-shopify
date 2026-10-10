@@ -12,7 +12,8 @@ class Product extends Model
         'subcategory_id','name_bn','name_en','slug','sku','price','compare_price','short_description','description_html',
         'stock_qty','is_active','is_featured','sort_order','meta_title','meta_description','main_image_path','main_image_url',
         'video_path','video_url','shopify_product_id','shopify_handle','shopify_vendor','shopify_product_type','shopify_status',
-        'shopify_tags','shopify_options','shopify_collections','shopify_synced_at'
+        'shopify_tags','shopify_options','shopify_collections','shopify_synced_at',
+        'oms_product_id','oms_main_media_id','oms_main_media_checksum','oms_video_media_id','oms_video_media_checksum'
     ];
 
     protected function casts(): array
