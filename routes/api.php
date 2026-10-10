@@ -4,7 +4,7 @@ use App\Http\Controllers\Api\OmsCatalogController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('oms/v1')
-    ->middleware(['oms.catalog', 'throttle:600,1'])
+    ->middleware(['oms.catalog', 'throttle:'.config('oms_catalog.rate_limit', 600).',1'])
     ->group(function () {
         Route::get('/ping', [OmsCatalogController::class, 'ping']);
         Route::get('/taxonomy', [OmsCatalogController::class, 'taxonomy']);
