@@ -328,6 +328,268 @@ class OmsCatalogApiTest extends TestCase
             ->assertJsonPath('sku', 'PAGE-2');
     }
 
+    public function test_taxonomy_post_requires_valid_token(): void
+    {
+        $payload = [
+            'type' => 'COLLECTION',
+            'name' => 'New Collection',
+            'slug' => 'new-collection',
+            'active' => true,
+        ];
+
+        $this->postJson('/api/oms/v1/taxonomy', $payload)->assertStatus(401);
+        $this->withHeader('X-OMS-Token', 'wrong')
+            ->postJson('/api/oms/v1/taxonomy', $payload)
+            ->assertStatus(401);
+    }
+
+    public function test_collection_mode_creates_unicode_collection_idempotently(): void
+    {
+        $slug = 'স্টাইলিশ-পার্ল-ব্রুচ-ক্লিপ-😍❤️';
+        $payload = [
+            'type' => 'COLLECTION',
+            'name' => 'স্টাইলিশ পার্ল ব্রুচ ক্লিপ',
+            'slug' => '/'.$slug.'/',
+            'parentExternalId' => null,
+            'active' => true,
+        ];
+
+        $first = $this->omsPost('/api/oms/v1/taxonomy', $payload)
+            ->assertCreated()
+            ->assertJsonPath('created', true)
+            ->assertJsonPath('term.type', 'COLLECTION')
+            ->assertJsonPath('term.parentExternalId', null)
+            ->assertJsonPath('term.slug', $slug)
+            ->json();
+
+        $externalId = $first['term']['externalId'];
+
+        $this->assertDatabaseHas('subcategories', [
+            'id' => (int) $externalId,
+            'slug' => $slug,
+            'name_bn' => 'স্টাইলিশ পার্ল ব্রুচ ক্লিপ',
+            'name_en' => null,
+            'is_active' => true,
+        ]);
+
+        $stored = Subcategory::query()->findOrFail((int) $externalId);
+        $this->assertSame($slug, $stored->slug);
+
+        $second = $this->omsPost('/api/oms/v1/taxonomy', [
+            ...$payload,
+            'slug' => $slug,
+        ])->assertOk()
+            ->assertJsonPath('created', false)
+            ->assertJsonPath('term.externalId', $externalId)
+            ->json();
+
+        $this->assertSame($externalId, $second['term']['externalId']);
+        $this->assertSame(1, Subcategory::query()->where('slug', $slug)->count());
+
+        $this->omsGet('/api/oms/v1/taxonomy')
+            ->assertOk()
+            ->assertJsonFragment([
+                'externalId' => $externalId,
+                'type' => 'COLLECTION',
+                'parentExternalId' => null,
+                'slug' => $slug,
+            ]);
+    }
+
+    public function test_collection_mode_uses_hidden_internal_parent_and_does_not_export_it_as_category(): void
+    {
+        config(['oms_catalog.collection_parent_category_id' => null]);
+
+        $response = $this->omsPost('/api/oms/v1/taxonomy', [
+            'type' => 'COLLECTION',
+            'name' => 'OMS Created',
+            'slug' => 'oms-created',
+            'active' => true,
+        ])->assertCreated()->json();
+
+        $subcategory = Subcategory::query()->findOrFail((int) $response['term']['externalId']);
+        $parent = Category::query()->findOrFail($subcategory->category_id);
+
+        $this->assertSame('OMS Collections', $parent->name_bn);
+        $this->assertSame('OMS Collections', $parent->name_en);
+        $this->assertSame('oms-collections', $parent->slug);
+        $this->assertFalse((bool) $parent->is_active);
+        $this->assertSame(0, (int) $parent->sort_order);
+        $this->assertNull($response['term']['parentExternalId']);
+
+        $terms = $this->omsGet('/api/oms/v1/taxonomy')->assertOk()->json('terms');
+        $this->assertFalse(collect($terms)->contains(
+            fn (array $term) => $term['type'] === 'CATEGORY' && $term['externalId'] === (string) $parent->id
+        ));
+    }
+
+    public function test_collection_mode_uses_configured_parent_category_when_valid(): void
+    {
+        $parent = Category::query()->create([
+            'name_bn' => 'Configured Parent',
+            'name_en' => 'Configured Parent',
+            'slug' => 'configured-parent',
+            'is_active' => false,
+            'sort_order' => 0,
+        ]);
+        config(['oms_catalog.collection_parent_category_id' => (string) $parent->id]);
+
+        $response = $this->omsPost('/api/oms/v1/taxonomy', [
+            'type' => 'COLLECTION',
+            'name' => 'Configured Collection',
+            'slug' => 'configured-collection',
+        ])->assertCreated()->json();
+
+        $subcategory = Subcategory::query()->findOrFail((int) $response['term']['externalId']);
+        $this->assertSame($parent->id, $subcategory->category_id);
+        $this->assertNull($response['term']['parentExternalId']);
+    }
+
+    public function test_collection_mode_rejects_category_and_subcategory(): void
+    {
+        foreach (['CATEGORY', 'SUBCATEGORY'] as $type) {
+            $this->omsPost('/api/oms/v1/taxonomy', [
+                'type' => $type,
+                'name' => 'Wrong Type',
+                'slug' => 'wrong-'.$type,
+                'parentExternalId' => $type === 'SUBCATEGORY' ? '1' : null,
+            ])->assertStatus(422)
+                ->assertJsonPath('success', false);
+        }
+    }
+
+    public function test_subcategory_mode_creates_category_and_subcategory_with_real_parent_id(): void
+    {
+        config(['oms_catalog.mode' => 'SUBCATEGORY']);
+
+        $category = $this->omsPost('/api/oms/v1/taxonomy', [
+            'type' => 'CATEGORY',
+            'name' => 'Hair Care',
+            'slug' => 'hair-care',
+            'active' => true,
+        ])->assertCreated()
+            ->assertJsonPath('term.parentExternalId', null)
+            ->json('term');
+
+        $slug = 'হেয়ার-ক্লিপ-hair-clips-😍';
+        $subcategory = $this->omsPost('/api/oms/v1/taxonomy', [
+            'type' => 'SUBCATEGORY',
+            'name' => 'Hair Clips',
+            'slug' => $slug,
+            'parentExternalId' => $category['externalId'],
+            'active' => true,
+        ])->assertCreated()
+            ->assertJsonPath('term.parentExternalId', $category['externalId'])
+            ->assertJsonPath('term.slug', $slug)
+            ->json('term');
+
+        $this->assertDatabaseHas('categories', [
+            'id' => (int) $category['externalId'],
+            'slug' => 'hair-care',
+            'name_en' => null,
+        ]);
+
+        $this->assertDatabaseHas('subcategories', [
+            'id' => (int) $subcategory['externalId'],
+            'category_id' => (int) $category['externalId'],
+            'slug' => $slug,
+            'name_en' => null,
+        ]);
+
+        $this->omsGet('/api/oms/v1/taxonomy')
+            ->assertOk()
+            ->assertJsonFragment([
+                'externalId' => $subcategory['externalId'],
+                'type' => 'SUBCATEGORY',
+                'parentExternalId' => $category['externalId'],
+                'slug' => $slug,
+            ]);
+    }
+
+    public function test_subcategory_mode_validates_parent_and_rejects_collection(): void
+    {
+        config(['oms_catalog.mode' => 'SUBCATEGORY']);
+
+        $base = [
+            'type' => 'SUBCATEGORY',
+            'name' => 'Hair Clips',
+            'slug' => 'hair-clips',
+        ];
+
+        $this->omsPost('/api/oms/v1/taxonomy', $base)
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $this->omsPost('/api/oms/v1/taxonomy', [
+            ...$base,
+            'parentExternalId' => '999999',
+        ])->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $this->omsPost('/api/oms/v1/taxonomy', [
+            'type' => 'COLLECTION',
+            'name' => 'Not Allowed',
+            'slug' => 'not-allowed',
+        ])->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_subcategory_same_slug_different_parent_returns_409(): void
+    {
+        config(['oms_catalog.mode' => 'SUBCATEGORY']);
+
+        $a = Category::query()->create([
+            'name_bn' => 'A', 'name_en' => null, 'slug' => 'cat-a', 'is_active' => true, 'sort_order' => 0,
+        ]);
+        $b = Category::query()->create([
+            'name_bn' => 'B', 'name_en' => null, 'slug' => 'cat-b', 'is_active' => true, 'sort_order' => 0,
+        ]);
+        Subcategory::query()->create([
+            'category_id' => $a->id,
+            'name_bn' => 'Existing',
+            'name_en' => null,
+            'slug' => 'same-slug',
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $this->omsPost('/api/oms/v1/taxonomy', [
+            'type' => 'SUBCATEGORY',
+            'name' => 'Requested',
+            'slug' => 'same-slug',
+            'parentExternalId' => (string) $b->id,
+        ])->assertStatus(409)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_cross_table_slug_collision_returns_409(): void
+    {
+        Category::query()->create([
+            'name_bn' => 'Existing Category',
+            'name_en' => null,
+            'slug' => 'shared-slug',
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $this->omsPost('/api/oms/v1/taxonomy', [
+            'type' => 'COLLECTION',
+            'name' => 'Collision Collection',
+            'slug' => 'shared-slug',
+        ])->assertStatus(409)
+            ->assertJsonPath('success', false);
+
+        config(['oms_catalog.mode' => 'SUBCATEGORY']);
+        [, $subcategory] = $this->taxonomy();
+
+        $this->omsPost('/api/oms/v1/taxonomy', [
+            'type' => 'CATEGORY',
+            'name' => 'Collision Category',
+            'slug' => $subcategory->slug,
+        ])->assertStatus(409)
+            ->assertJsonPath('success', false);
+    }
+
     private function taxonomy(): array
     {
         $category = Category::query()->create([
@@ -408,5 +670,10 @@ class OmsCatalogApiTest extends TestCase
     private function omsPut(string $url, array $payload)
     {
         return $this->withHeader('X-OMS-Token', $this->token)->putJson($url, $payload);
+    }
+
+    private function omsPost(string $url, array $payload)
+    {
+        return $this->withHeader('X-OMS-Token', $this->token)->postJson($url, $payload);
     }
 }
