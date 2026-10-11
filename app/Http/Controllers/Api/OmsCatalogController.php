@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\OmsCatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class OmsCatalogController extends Controller
@@ -26,7 +27,7 @@ class OmsCatalogController extends Controller
 
     public function createTaxonomy(Request $request): JsonResponse
     {
-        $validated = $request->validate([
+        $validator = Validator::make($request->all(), [
             'type' => ['required', Rule::in(['COLLECTION', 'CATEGORY', 'SUBCATEGORY'])],
             'name' => ['required', 'string', 'max:160'],
             'slug' => ['required', 'string', 'max:500'],
@@ -34,6 +35,14 @@ class OmsCatalogController extends Controller
             'active' => ['sometimes', 'boolean'],
         ]);
 
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $validated = $validator->validated();
         $validated['active'] = $validated['active'] ?? true;
 
         $result = $this->catalog->createTaxonomy($validated);
