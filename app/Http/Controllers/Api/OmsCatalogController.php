@@ -24,6 +24,27 @@ class OmsCatalogController extends Controller
         return response()->json($this->catalog->taxonomyPayload());
     }
 
+    public function createTaxonomy(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'type' => ['required', Rule::in(['COLLECTION', 'CATEGORY', 'SUBCATEGORY'])],
+            'name' => ['required', 'string', 'max:160'],
+            'slug' => ['required', 'string', 'max:500'],
+            'parentExternalId' => ['nullable', 'string', 'max:100'],
+            'active' => ['sometimes', 'boolean'],
+        ]);
+
+        $validated['active'] = $validated['active'] ?? true;
+
+        $result = $this->catalog->createTaxonomy($validated);
+
+        return response()->json([
+            'success' => true,
+            'created' => (bool) $result['created'],
+            'term' => $result['term'],
+        ], $result['created'] ? 201 : 200);
+    }
+
     public function products(Request $request): JsonResponse
     {
         $validated = $request->validate([
