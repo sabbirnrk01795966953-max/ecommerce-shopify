@@ -8,6 +8,7 @@ Route::prefix('oms/v1')
     ->group(function () {
         Route::get('/ping', [OmsCatalogController::class, 'ping']);
         Route::get('/taxonomy', [OmsCatalogController::class, 'taxonomy']);
+        Route::post('/taxonomy', [OmsCatalogController::class, 'createTaxonomy']);
         Route::get('/products', [OmsCatalogController::class, 'products']);
         Route::get('/products/{sku}', [OmsCatalogController::class, 'show'])->where('sku', '.*');
         Route::put('/products/{sku}', [OmsCatalogController::class, 'upsert'])->where('sku', '.*');
