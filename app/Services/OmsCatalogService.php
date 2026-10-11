@@ -96,6 +96,225 @@ class OmsCatalogService
         ];
     }
 
+    public function createTaxonomy(array $data): array
+    {
+        $mode = $this->mode();
+        $type = strtoupper((string) $data['type']);
+        $name = trim((string) $data['name']);
+        $slug = trim(trim((string) $data['slug']), '/');
+        $active = array_key_exists('active', $data) ? (bool) $data['active'] : true;
+        $parentExternalId = isset($data['parentExternalId'])
+            ? trim((string) $data['parentExternalId'])
+            : null;
+
+        if ($name === '' || $slug === '') {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'Name and slug must not be empty.',
+            ], 422));
+        }
+
+        if ($mode === 'COLLECTION') {
+            if ($type !== 'COLLECTION') {
+                abort(response()->json([
+                    'success' => false,
+                    'message' => 'COLLECTION catalog mode only accepts type COLLECTION.',
+                ], 422));
+            }
+
+            return $this->createCollectionTerm($name, $slug, $active);
+        }
+
+        if ($type === 'COLLECTION') {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'SUBCATEGORY catalog mode does not accept type COLLECTION.',
+            ], 422));
+        }
+
+        if ($type === 'CATEGORY') {
+            return $this->createCategoryTerm($name, $slug, $active);
+        }
+
+        if ($type === 'SUBCATEGORY') {
+            if ($parentExternalId === null || $parentExternalId === '') {
+                abort(response()->json([
+                    'success' => false,
+                    'message' => 'parentExternalId is required for SUBCATEGORY.',
+                ], 422));
+            }
+
+            return $this->createSubcategoryTerm($name, $slug, $active, $parentExternalId);
+        }
+
+        abort(response()->json([
+            'success' => false,
+            'message' => 'Unsupported taxonomy type.',
+        ], 422));
+    }
+
+    private function createCollectionTerm(string $name, string $slug, bool $active): array
+    {
+        $existing = Subcategory::query()->where('slug', $slug)->first();
+
+        if ($existing) {
+            return [
+                'created' => false,
+                'term' => $this->taxonomyTerm($existing, 'COLLECTION', null),
+            ];
+        }
+
+        if (Category::query()->where('slug', $slug)->exists()) {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'Slug conflict: a Category already uses this exact slug.',
+            ], 409));
+        }
+
+        $parent = $this->collectionParentCategory();
+
+        $record = Subcategory::query()->create([
+            'category_id' => $parent->id,
+            'name_bn' => $name,
+            'name_en' => null,
+            'slug' => $slug,
+            'is_active' => $active,
+            'sort_order' => 0,
+        ]);
+
+        return [
+            'created' => true,
+            'term' => $this->taxonomyTerm($record, 'COLLECTION', null),
+        ];
+    }
+
+    private function createCategoryTerm(string $name, string $slug, bool $active): array
+    {
+        $existing = Category::query()->where('slug', $slug)->first();
+
+        if ($existing) {
+            return [
+                'created' => false,
+                'term' => $this->taxonomyTerm($existing, 'CATEGORY', null),
+            ];
+        }
+
+        if (Subcategory::query()->where('slug', $slug)->exists()) {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'Slug conflict: a Subcategory already uses this exact slug.',
+            ], 409));
+        }
+
+        $record = Category::query()->create([
+            'name_bn' => $name,
+            'name_en' => null,
+            'slug' => $slug,
+            'is_active' => $active,
+            'sort_order' => 0,
+        ]);
+
+        return [
+            'created' => true,
+            'term' => $this->taxonomyTerm($record, 'CATEGORY', null),
+        ];
+    }
+
+    private function createSubcategoryTerm(
+        string $name,
+        string $slug,
+        bool $active,
+        string $parentExternalId
+    ): array {
+        if (! ctype_digit($parentExternalId) || (int) $parentExternalId < 1) {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'parentExternalId must be a valid Laravel Category ID.',
+            ], 422));
+        }
+
+        $parent = Category::query()->find((int) $parentExternalId);
+
+        if (! $parent) {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'Parent Category was not found.',
+            ], 422));
+        }
+
+        $existing = Subcategory::query()->where('slug', $slug)->first();
+
+        if ($existing) {
+            if ((int) $existing->category_id !== (int) $parent->id) {
+                abort(response()->json([
+                    'success' => false,
+                    'message' => 'Slug conflict: this Subcategory slug already belongs to a different Category.',
+                ], 409));
+            }
+
+            return [
+                'created' => false,
+                'term' => $this->taxonomyTerm($existing, 'SUBCATEGORY', (string) $parent->id),
+            ];
+        }
+
+        if (Category::query()->where('slug', $slug)->exists()) {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'Slug conflict: a Category already uses this exact slug.',
+            ], 409));
+        }
+
+        $record = Subcategory::query()->create([
+            'category_id' => $parent->id,
+            'name_bn' => $name,
+            'name_en' => null,
+            'slug' => $slug,
+            'is_active' => $active,
+            'sort_order' => 0,
+        ]);
+
+        return [
+            'created' => true,
+            'term' => $this->taxonomyTerm($record, 'SUBCATEGORY', (string) $parent->id),
+        ];
+    }
+
+    private function collectionParentCategory(): Category
+    {
+        $configuredId = config('oms_catalog.collection_parent_category_id');
+
+        if ($configuredId !== null && trim((string) $configuredId) !== '') {
+            $configured = Category::query()->find((int) $configuredId);
+
+            if ($configured) {
+                return $configured;
+            }
+        }
+
+        return Category::query()->firstOrCreate(
+            ['slug' => 'oms-collections'],
+            [
+                'name_bn' => 'OMS Collections',
+                'name_en' => 'OMS Collections',
+                'is_active' => false,
+                'sort_order' => 0,
+            ]
+        );
+    }
+
+    private function taxonomyTerm(Category|Subcategory $record, string $type, ?string $parentExternalId): array
+    {
+        return [
+            'externalId' => (string) $record->id,
+            'type' => $type,
+            'parentExternalId' => $parentExternalId,
+            'name' => (string) ($record->name_bn ?: $record->name_en),
+            'slug' => (string) $record->slug,
+            'active' => (bool) $record->is_active,
+        ];
+    }
+
     public function exportProducts(int $limit, ?string $cursor): array
     {
         $afterId = $cursor !== null && $cursor !== '' ? (int) $cursor : 0;
