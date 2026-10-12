@@ -100,15 +100,17 @@ class FinalizeOmsProductMedia implements ShouldQueue
         }
 
         $oldPath = $product->main_image_path;
+        $oldMediaId = (string) $product->oms_main_media_id;
+        $isOmsManagedFile = $this->isOmsManagedPath($oldPath, 'products/main/', $oldMediaId);
 
         $product->update([
-            'main_image_path' => null,
-            'main_image_url' => null,
+            'main_image_path' => $isOmsManagedFile ? null : $product->main_image_path,
+            'main_image_url' => $isOmsManagedFile ? null : $product->main_image_url,
             'oms_main_media_id' => null,
             'oms_main_media_checksum' => null,
         ]);
 
-        if ($oldPath) {
+        if ($isOmsManagedFile && $oldPath) {
             Storage::disk('public')->delete($oldPath);
         }
     }
@@ -122,16 +124,35 @@ class FinalizeOmsProductMedia implements ShouldQueue
         }
 
         $oldPath = $product->video_path;
+        $oldMediaId = (string) $product->oms_video_media_id;
+        $isOmsManagedFile = $this->isOmsManagedPath($oldPath, 'products/video/', $oldMediaId);
 
         $product->update([
-            'video_path' => null,
+            'video_path' => $isOmsManagedFile ? null : $product->video_path,
             'oms_video_media_id' => null,
             'oms_video_media_checksum' => null,
         ]);
 
-        if ($oldPath) {
+        if ($isOmsManagedFile && $oldPath) {
             Storage::disk('public')->delete($oldPath);
         }
+    }
+
+    private function isOmsManagedPath(?string $path, string $directory, string $mediaId): bool
+    {
+        if (! $path) {
+            return false;
+        }
+
+        // Legacy OMS files used products/oms/...; treat those as OMS-owned too.
+        if (str_starts_with($path, 'products/oms/')) {
+            return true;
+        }
+
+        $safeMediaId = preg_replace('/[^A-Za-z0-9_-]+/', '-', $mediaId) ?: 'media';
+
+        return str_starts_with($path, $directory)
+            && str_starts_with(basename($path), $safeMediaId.'-');
     }
 
     private function finalizeGallery(Product $product): void
