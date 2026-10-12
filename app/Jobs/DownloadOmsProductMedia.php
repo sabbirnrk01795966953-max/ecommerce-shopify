@@ -96,7 +96,8 @@ class DownloadOmsProductMedia implements ShouldQueue
             $extension = $this->extensionFor($mime, (string) ($this->media['originalFileName'] ?? ''));
             $mediaId = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) $this->media['id']) ?: 'media';
             $version = substr(hash_file('sha256', $temp), 0, 16);
-            $path = 'products/oms/'.$product->id.'/'.$mediaId.'-'.$version.'.'.$extension;
+            $directory = $this->storageDirectory($kind, (bool) ($this->media['isPrimary'] ?? false));
+            $path = $directory.'/'.$mediaId.'-'.$version.'.'.$extension;
 
             $stream = fopen($temp, 'rb');
             if (! $stream) {
@@ -190,6 +191,15 @@ class DownloadOmsProductMedia implements ShouldQueue
         if ($oldPath && $oldPath !== $path) {
             Storage::disk('public')->delete($oldPath);
         }
+    }
+
+    private function storageDirectory(string $kind, bool $isPrimary): string
+    {
+        if ($kind === 'VIDEO') {
+            return 'products/video';
+        }
+
+        return $isPrimary ? 'products/main' : 'products/gallery';
     }
 
     private function assertSafeRemoteUrl(string $url): void
