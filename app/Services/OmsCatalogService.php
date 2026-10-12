@@ -497,7 +497,7 @@ class OmsCatalogService
             return $product->fresh();
         });
 
-        $mediaStatus = $this->queueMediaSync($product, $data['media'] ?? []);
+        $mediaStatus = $this->queueMediaSync($product, array_key_exists('media', $data) ? $data['media'] : null);
 
         return [
             'product' => $product,
@@ -506,32 +506,91 @@ class OmsCatalogService
         ];
     }
 
-    public function queueMediaSync(Product $product, array $media): string
+    public function queueMediaSync(Product $product, ?array $media): string
     {
-        if ($media === []) {
+        // When the media key is omitted entirely, preserve the current media.
+        // An explicit empty array means OMS intentionally expects no OMS-managed media.
+        if ($media === null) {
             return 'none';
         }
 
-        $primaryCount = collect($media)->where('kind', 'IMAGE')->where('isPrimary', true)->count();
-        $videoCount = collect($media)->where('kind', 'VIDEO')->count();
+        $rows = collect($media)->map(function (array $row, int $index) {
+            $row['kind'] = strtoupper((string) ($row['kind'] ?? ''));
+            $row['isPrimary'] = (bool) ($row['isPrimary'] ?? false);
+            $row['sortOrder'] = (int) ($row['sortOrder'] ?? 0);
+            $row['_inputOrder'] = $index;
 
-        if ($primaryCount > 1 || $videoCount > 1) {
+            return $row;
+        });
+
+        $primaryRows = $rows
+            ->where('kind', 'IMAGE')
+            ->where('isPrimary', true)
+            ->values();
+
+        $videoRows = $rows
+            ->where('kind', 'VIDEO')
+            ->values();
+
+        if ($primaryRows->count() > 1 || $videoRows->count() > 1) {
             throw ValidationException::withMessages([
                 'media' => 'Only one primary image and one uploaded video are supported by this storefront.',
             ]);
         }
 
-        $expectedGallery = [];
+        $galleryRows = $rows
+            ->where('kind', 'IMAGE')
+            ->where('isPrimary', false)
+            ->sort(function (array $a, array $b) {
+                $bySortOrder = ((int) $a['sortOrder']) <=> ((int) $b['sortOrder']);
+
+                return $bySortOrder !== 0
+                    ? $bySortOrder
+                    : ((int) $a['_inputOrder']) <=> ((int) $b['_inputOrder']);
+            })
+            ->values()
+            ->map(function (array $row, int $normalizedOrder) {
+                $row['_normalizedOrder'] = $normalizedOrder;
+
+                return $row;
+            });
+
+        $expectedState = [
+            'main' => $primaryRows->isNotEmpty()
+                ? [
+                    'id' => (string) $primaryRows[0]['id'],
+                    'checksum' => (string) ($primaryRows[0]['checksum'] ?? ''),
+                ]
+                : null,
+            'gallery' => $galleryRows->map(fn (array $row) => [
+                'id' => (string) $row['id'],
+                'checksum' => (string) ($row['checksum'] ?? ''),
+                'sort_order' => (int) $row['_normalizedOrder'],
+            ])->values()->all(),
+            'video' => $videoRows->isNotEmpty()
+                ? [
+                    'id' => (string) $videoRows[0]['id'],
+                    'checksum' => (string) ($videoRows[0]['checksum'] ?? ''),
+                ]
+                : null,
+        ];
+
         $queued = false;
 
-        foreach ($media as $row) {
-            $kind = strtoupper((string) $row['kind']);
-            $isPrimary = (bool) ($row['isPrimary'] ?? false);
-            $mediaId = (string) $row['id'];
-            $checksum = (string) ($row['checksum'] ?? '');
+        foreach ($rows as $row) {
+            $kind = (string) $row['kind'];
 
-            if ($kind === 'IMAGE' && ! $isPrimary) {
-                $expectedGallery[$mediaId] = $checksum;
+            if (! in_array($kind, ['IMAGE', 'VIDEO'], true)) {
+                continue;
+            }
+
+            if ($kind === 'IMAGE' && ! $row['isPrimary']) {
+                $galleryState = collect($expectedState['gallery'])
+                    ->firstWhere('id', (string) $row['id']);
+
+                if ($galleryState) {
+                    $row['sortOrder'] = (int) $galleryState['sort_order'];
+                }
             }
 
             if ($this->mediaAlreadyCurrent($product, $row)) {
@@ -547,14 +606,14 @@ class OmsCatalogService
 
             DownloadOmsProductMedia::dispatch(
                 $product->id,
-                collect($row)->except('downloadUrl')->all(),
+                collect($row)->except(['downloadUrl', '_inputOrder', '_normalizedOrder'])->all(),
                 $cacheKey
             );
 
             $queued = true;
         }
 
-        FinalizeOmsProductMedia::dispatch($product->id, $expectedGallery);
+        FinalizeOmsProductMedia::dispatch($product->id, $expectedState);
 
         return $queued ? 'queued' : 'unchanged';
     }
@@ -565,19 +624,18 @@ class OmsCatalogService
         $mediaId = (string) $row['id'];
         $checksum = (string) ($row['checksum'] ?? '');
         $isPrimary = (bool) ($row['isPrimary'] ?? false);
+        $safeMediaId = preg_replace('/[^A-Za-z0-9_-]+/', '-', $mediaId) ?: 'media';
 
         if ($kind === 'IMAGE' && $isPrimary) {
             return $product->oms_main_media_id === $mediaId
                 && (string) $product->oms_main_media_checksum === $checksum
-                && $product->main_image_path
-                && Storage::disk('public')->exists($product->main_image_path);
+                && $this->isExpectedOmsLocalFile($product->main_image_path, 'products/main/', $safeMediaId);
         }
 
         if ($kind === 'VIDEO') {
             return $product->oms_video_media_id === $mediaId
                 && (string) $product->oms_video_media_checksum === $checksum
-                && $product->video_path
-                && Storage::disk('public')->exists($product->video_path);
+                && $this->isExpectedOmsLocalFile($product->video_path, 'products/video/', $safeMediaId);
         }
 
         return ProductImage::query()
@@ -586,7 +644,22 @@ class OmsCatalogService
             ->where('oms_media_checksum', $checksum)
             ->whereNotNull('path')
             ->get()
-            ->contains(fn (ProductImage $image) => $image->path && Storage::disk('public')->exists($image->path));
+            ->contains(fn (ProductImage $image) =>
+                $this->isExpectedOmsLocalFile($image->path, 'products/gallery/', $safeMediaId)
+            );
+    }
+
+    private function isExpectedOmsLocalFile(?string $path, string $directory, string $safeMediaId): bool
+    {
+        if (! $path || ! str_starts_with($path, $directory)) {
+            return false;
+        }
+
+        if (! str_starts_with(basename($path), $safeMediaId.'-')) {
+            return false;
+        }
+
+        return Storage::disk('public')->exists($path);
     }
 
     private function resolveTaxonomy(array $taxonomy): ?int
