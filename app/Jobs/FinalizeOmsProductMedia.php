@@ -20,7 +20,7 @@ class FinalizeOmsProductMedia implements ShouldQueue
 
     public function __construct(
         public readonly int $productId,
-        public readonly array $expectedGallery
+        public readonly array $expectedState
     ) {
     }
 
@@ -31,12 +31,26 @@ class FinalizeOmsProductMedia implements ShouldQueue
             return;
         }
 
-        foreach ($this->expectedGallery as $mediaId => $checksum) {
+        if (! $this->expectedMainIsReady($product)) {
+            $this->release(30);
+            return;
+        }
+
+        if (! $this->expectedVideoIsReady($product)) {
+            $this->release(30);
+            return;
+        }
+
+        foreach (($this->expectedState['gallery'] ?? []) as $expected) {
             $ready = ProductImage::query()
                 ->where('product_id', $product->id)
-                ->where('oms_media_id', $mediaId)
-                ->where('oms_media_checksum', $checksum ?: null)
-                ->exists();
+                ->where('oms_media_id', (string) $expected['id'])
+                ->where('oms_media_checksum', ($expected['checksum'] ?? '') !== '' ? (string) $expected['checksum'] : null)
+                ->whereNotNull('path')
+                ->get()
+                ->contains(fn (ProductImage $image) =>
+                    $image->path && Storage::disk('public')->exists($image->path)
+                );
 
             if (! $ready) {
                 $this->release(30);
@@ -44,12 +58,93 @@ class FinalizeOmsProductMedia implements ShouldQueue
             }
         }
 
+        $this->applyMainExpectation($product);
+        $this->applyVideoExpectation($product);
+        $this->finalizeGallery($product);
+    }
+
+    private function expectedMainIsReady(Product $product): bool
+    {
+        $expected = $this->expectedState['main'] ?? null;
+
+        if ($expected === null) {
+            return true;
+        }
+
+        return $product->oms_main_media_id === (string) $expected['id']
+            && (string) $product->oms_main_media_checksum === (string) ($expected['checksum'] ?? '')
+            && $product->main_image_path
+            && Storage::disk('public')->exists($product->main_image_path);
+    }
+
+    private function expectedVideoIsReady(Product $product): bool
+    {
+        $expected = $this->expectedState['video'] ?? null;
+
+        if ($expected === null) {
+            return true;
+        }
+
+        return $product->oms_video_media_id === (string) $expected['id']
+            && (string) $product->oms_video_media_checksum === (string) ($expected['checksum'] ?? '')
+            && $product->video_path
+            && Storage::disk('public')->exists($product->video_path);
+    }
+
+    private function applyMainExpectation(Product $product): void
+    {
+        $expected = $this->expectedState['main'] ?? null;
+
+        if ($expected !== null || ! $product->oms_main_media_id) {
+            return;
+        }
+
+        $oldPath = $product->main_image_path;
+
+        $product->update([
+            'main_image_path' => null,
+            'main_image_url' => null,
+            'oms_main_media_id' => null,
+            'oms_main_media_checksum' => null,
+        ]);
+
+        if ($oldPath) {
+            Storage::disk('public')->delete($oldPath);
+        }
+    }
+
+    private function applyVideoExpectation(Product $product): void
+    {
+        $expected = $this->expectedState['video'] ?? null;
+
+        if ($expected !== null || ! $product->oms_video_media_id) {
+            return;
+        }
+
+        $oldPath = $product->video_path;
+
+        $product->update([
+            'video_path' => null,
+            'oms_video_media_id' => null,
+            'oms_video_media_checksum' => null,
+        ]);
+
+        if ($oldPath) {
+            Storage::disk('public')->delete($oldPath);
+        }
+    }
+
+    private function finalizeGallery(Product $product): void
+    {
+        $expectedGallery = collect($this->expectedState['gallery'] ?? []);
+        $expectedIds = $expectedGallery->pluck('id')->map(fn ($id) => (string) $id)->all();
+
         $query = ProductImage::query()
             ->where('product_id', $product->id)
             ->whereNotNull('oms_media_id');
 
-        if ($this->expectedGallery !== []) {
-            $query->whereNotIn('oms_media_id', array_keys($this->expectedGallery));
+        if ($expectedIds !== []) {
+            $query->whereNotIn('oms_media_id', $expectedIds);
         }
 
         $obsolete = $query->get();
@@ -61,6 +156,15 @@ class FinalizeOmsProductMedia implements ShouldQueue
             if ($path) {
                 Storage::disk('public')->delete($path);
             }
+        }
+
+        foreach ($expectedGallery as $expected) {
+            ProductImage::query()
+                ->where('product_id', $product->id)
+                ->where('oms_media_id', (string) $expected['id'])
+                ->update([
+                    'sort_order' => (int) $expected['sort_order'],
+                ]);
         }
     }
 }
