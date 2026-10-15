@@ -33,7 +33,18 @@
                     </label>
                     <label class="form-icon-row">
                         <span>☎</span>
-                        <input name="phone" value="{{ old('phone') }}" placeholder="আপনার ফোন নম্বর" inputmode="tel" autocomplete="tel" required>
+                        <input
+                            name="phone"
+                            value="{{ old('phone') }}"
+                            placeholder="আপনার ফোন নম্বর (১১ ডিজিট)"
+                            inputmode="numeric"
+                            autocomplete="tel"
+                            minlength="11"
+                            maxlength="11"
+                            pattern="[0-9]{11}"
+                            title="ফোন নম্বর অবশ্যই ১১ ডিজিটের হতে হবে"
+                            required
+                        >
                     </label>
                     <label class="form-icon-row">
                         <span>⌖</span>
