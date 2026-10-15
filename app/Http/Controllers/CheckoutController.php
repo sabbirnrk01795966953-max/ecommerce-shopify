@@ -40,8 +40,16 @@ class CheckoutController extends Controller
     public function store(Request $request, OmsService $oms, MetaCapiService $meta)
     {
         $validated = $request->validate([
-            'customer_name'=>'required|string|max:120','phone'=>'required|string|max:30','address'=>'required|string|max:1000',
-            'shipping_area'=>'required|in:inside,outside','email'=>'nullable|email|max:190','note'=>'nullable|string|max:1000','event_id'=>'nullable|string|max:120',
+            'customer_name'=>'required|string|max:120',
+            'phone'=>['required','string','regex:/^[0-9]{11}$/'],
+            'address'=>'required|string|max:1000',
+            'shipping_area'=>'required|in:inside,outside',
+            'email'=>'nullable|email|max:190',
+            'note'=>'nullable|string|max:1000',
+            'event_id'=>'nullable|string|max:120',
+        ], [
+            'phone.required' => 'আপনার ফোন নম্বর দিন।',
+            'phone.regex' => 'ফোন নম্বর অবশ্যই ১১ ডিজিটের হতে হবে।',
         ]);
         $cart = array_values(session('cart', []));
         if (! count($cart)) {
