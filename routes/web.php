@@ -56,6 +56,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth','admin'])->group(func
     Route::patch('/orders/{order}',[AdminOrderController::class,'update'])->name('orders.update');
     Route::delete('/orders/{order}',[AdminOrderController::class,'destroy'])->name('orders.destroy');
     Route::post('/orders/{order}/resend-oms',[AdminOrderController::class,'resend'])->name('orders.resend-oms');
+    Route::post('/orders/{order}/pathao-refresh',[AdminOrderController::class,'refreshPathao'])->name('orders.pathao-refresh');
+    Route::post('/orders/{order}/pathao-cancel',[AdminOrderController::class,'cancelPathao'])->name('orders.pathao-cancel');
 
     Route::get('/fulfillment/ready-invoices',[AdminFulfillmentController::class,'readyInvoices'])->name('fulfillment.ready-invoices');
     Route::post('/fulfillment/invoice-batches',[AdminFulfillmentController::class,'createInvoiceBatch'])->name('fulfillment.invoice-batches.store');
