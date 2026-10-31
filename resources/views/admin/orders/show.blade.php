@@ -12,6 +12,7 @@
         'DELIVERED' => 'ডেলিভারড',
         'RETURNED' => 'রিটার্ন',
         'CANCELLED' => 'বাতিল',
+        'STOCKOUT' => 'স্টকআউট',
     ];
 @endphp
 
@@ -63,6 +64,27 @@
                 <summary>OMS Response</summary>
                 <pre>{{ $order->oms_response }}</pre>
             </details>
+        @endif
+
+        <hr>
+        <h3>Pathao Courier</h3>
+        <dl class="details">
+            <dt>Consignment</dt><dd>{{ $order->pathao_consignment_id ?: '-' }}</dd>
+            <dt>Pathao Status</dt><dd>{{ $order->pathao_status ?: '-' }}</dd>
+            <dt>Dispatched</dt><dd>{{ $order->dispatched_at?->timezone('Asia/Dhaka')->format('d M Y h:i A') ?: '-' }}</dd>
+        </dl>
+
+        @if($order->pathao_consignment_id)
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+                <form action="{{ route('admin.orders.pathao-refresh',$order) }}" method="post">
+                    @csrf
+                    <button class="btn outline">Refresh Pathao Status</button>
+                </form>
+                <form action="{{ route('admin.orders.pathao-cancel',$order) }}" method="post" onsubmit="return confirm('Pathao consignment cancel করবেন?')">
+                    @csrf
+                    <button class="btn danger">Cancel Pathao Consignment</button>
+                </form>
+            </div>
         @endif
     </div>
 </div>
