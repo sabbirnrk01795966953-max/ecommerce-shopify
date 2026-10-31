@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\FulfillmentController as AdminFulfillmentController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
@@ -55,6 +56,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth','admin'])->group(func
     Route::patch('/orders/{order}',[AdminOrderController::class,'update'])->name('orders.update');
     Route::delete('/orders/{order}',[AdminOrderController::class,'destroy'])->name('orders.destroy');
     Route::post('/orders/{order}/resend-oms',[AdminOrderController::class,'resend'])->name('orders.resend-oms');
+
+    Route::get('/fulfillment/ready-invoices',[AdminFulfillmentController::class,'readyInvoices'])->name('fulfillment.ready-invoices');
+    Route::post('/fulfillment/invoice-batches',[AdminFulfillmentController::class,'createInvoiceBatch'])->name('fulfillment.invoice-batches.store');
+    Route::get('/fulfillment/invoice-batches/{batch}/print',[AdminFulfillmentController::class,'printInvoiceBatch'])->name('fulfillment.invoice-batches.print');
+    Route::get('/fulfillment/ready-dispatch',[AdminFulfillmentController::class,'readyDispatch'])->name('fulfillment.ready-dispatch');
+    Route::post('/fulfillment/mark-exception',[AdminFulfillmentController::class,'markException'])->name('fulfillment.mark-exception');
+    Route::post('/fulfillment/dispatch',[AdminFulfillmentController::class,'dispatch'])->name('fulfillment.dispatch');
     Route::get('/shopify',[AdminShopifyController::class,'index'])->name('shopify.index');
     Route::post('/shopify/save',[AdminShopifyController::class,'save'])->name('shopify.save');
     Route::post('/shopify/test',[AdminShopifyController::class,'test'])->name('shopify.test');
@@ -62,5 +70,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth','admin'])->group(func
     Route::get('/settings',[AdminSettingsController::class,'edit'])->name('settings.edit');
     Route::post('/settings/save-oms',[AdminSettingsController::class,'saveOms'])->name('settings.save-oms');
     Route::post('/settings/test-oms',[AdminSettingsController::class,'testOms'])->name('settings.test-oms');
+    Route::post('/settings/test-pathao',[AdminSettingsController::class,'testPathao'])->name('settings.test-pathao');
     Route::put('/settings',[AdminSettingsController::class,'update'])->name('settings.update');
 });
