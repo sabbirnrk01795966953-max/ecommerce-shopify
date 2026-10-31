@@ -199,9 +199,8 @@ class PathaoService
 
     private function baseUrl(): string
     {
-        return rtrim(
-            trim((string) Setting::getValue('pathao_base_url', 'https://api-hermes.pathao.com')),
-            '/'
-        );
+        $configured = trim((string) Setting::getValue('pathao_base_url', ''));
+
+        return rtrim($configured !== '' ? $configured : 'https://api-hermes.pathao.com', '/');
     }
 }
