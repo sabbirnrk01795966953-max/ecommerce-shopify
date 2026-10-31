@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\OmsService;
+use App\Services\PathaoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,8 @@ class SettingsController extends Controller
             'oms_enabled' => Setting::isEnabled('oms_enabled'),
             'oms_api_key_saved' => trim((string) Setting::getValue('oms_api_key', '')) !== '',
             'meta_access_token_saved' => trim((string) Setting::getValue('meta_access_token', '')) !== '',
+            'pathao_client_secret_saved' => trim((string) Setting::getValue('pathao_client_secret', '')) !== '',
+            'pathao_password_saved' => trim((string) Setting::getValue('pathao_password', '')) !== '',
         ];
 
         return view('admin.settings.edit', compact('integrationState'));
@@ -68,6 +71,15 @@ class SettingsController extends Controller
             'meta_test_event_code' => 'nullable|string|max:160',
             'oms_endpoint' => 'nullable|url|max:2000',
             'oms_api_key_new' => 'nullable|string|max:4000',
+            'pathao_base_url' => 'nullable|url|max:1000',
+            'pathao_client_id' => 'nullable|string|max:255',
+            'pathao_client_secret_new' => 'nullable|string|max:4000',
+            'pathao_username' => 'nullable|string|max:255',
+            'pathao_password_new' => 'nullable|string|max:4000',
+            'pathao_store_id' => 'nullable|integer|min:1',
+            'pathao_delivery_type' => 'nullable|integer|in:12,48',
+            'pathao_item_type' => 'nullable|integer|in:1,2',
+            'pathao_item_weight' => 'nullable|numeric|min:0.5|max:10',
             'logo' => 'nullable|image|max:4096',
             'hero_image' => 'nullable|image|max:6144',
         ]);
@@ -84,6 +96,8 @@ class SettingsController extends Controller
             'footer_shop_title', 'footer_shop_links', 'footer_useful_title', 'footer_useful_links',
             'footer_service_title', 'footer_service_links', 'footer_copyright',
             'meta_pixel_id', 'meta_api_version', 'meta_test_event_code', 'oms_endpoint',
+            'pathao_base_url', 'pathao_client_id', 'pathao_username', 'pathao_store_id',
+            'pathao_delivery_type', 'pathao_item_type', 'pathao_item_weight',
         ];
 
         $omsEnabled = $request->boolean('oms_enabled');
@@ -110,6 +124,14 @@ class SettingsController extends Controller
 
             if (! empty($data['meta_access_token_new'])) {
                 Setting::setValue('meta_access_token', trim($data['meta_access_token_new']));
+            }
+
+            if (! empty($data['pathao_client_secret_new'])) {
+                Setting::setValue('pathao_client_secret', trim($data['pathao_client_secret_new']));
+            }
+
+            if (! empty($data['pathao_password_new'])) {
+                Setting::setValue('pathao_password', trim($data['pathao_password_new']));
             }
         });
 
@@ -172,6 +194,13 @@ class SettingsController extends Controller
             'api_key_saved' => $keySaved,
             'message' => 'OMS settings saved. OMS is now '.($enabled ? 'ENABLED' : 'DISABLED').'.',
         ]);
+    }
+
+    public function testPathao(PathaoService $pathao): JsonResponse
+    {
+        $result = $pathao->testConnection();
+
+        return response()->json($result, $result['ok'] ? 200 : 422);
     }
 
     public function testOms(Request $request, OmsService $oms): JsonResponse
