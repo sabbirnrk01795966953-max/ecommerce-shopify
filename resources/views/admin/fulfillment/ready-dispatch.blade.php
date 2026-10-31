@@ -12,7 +12,7 @@
 </form>
 
 <div class="panel two-col">
-    <form method="post" action="{{ route('admin.fulfillment.mark-exception') }}">
+    <form class="form-grid" method="post" action="{{ route('admin.fulfillment.mark-exception') }}">
         @csrf
         <h3>Cancel / Stockout by Invoice</h3>
         <label>Action
@@ -27,7 +27,7 @@
         <button class="btn danger" type="submit">Apply</button>
     </form>
 
-    <form method="post" action="{{ route('admin.fulfillment.mark-exception') }}" enctype="multipart/form-data">
+    <form class="form-grid" method="post" action="{{ route('admin.fulfillment.mark-exception') }}" enctype="multipart/form-data">
         @csrf
         <h3>Cancel / Stockout by CSV</h3>
         <label>Action
