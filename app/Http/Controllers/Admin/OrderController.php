@@ -17,6 +17,7 @@ class OrderController extends Controller
         'DELIVERED',
         'RETURNED',
         'CANCELLED',
+        'STOCKOUT',
     ];
 
     public function index(Request $r)
