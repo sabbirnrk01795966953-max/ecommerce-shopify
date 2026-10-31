@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Services\OmsService;
+use App\Services\PathaoService;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
@@ -110,5 +111,28 @@ class OrderController extends Controller
         $oms->send($order);
 
         return back()->with('success', 'OMS send attempted. Current status: '.$order->fresh()->oms_status);
+    }
+
+    public function refreshPathao(Order $order, PathaoService $pathao)
+    {
+        try {
+            $pathao->info($order);
+
+            return back()->with('success', 'Pathao status updated: '.$order->fresh()->pathao_status);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['pathao' => $e->getMessage()]);
+        }
+    }
+
+    public function cancelPathao(Order $order, PathaoService $pathao)
+    {
+        try {
+            $pathao->cancel($order);
+            $order->update(['status' => 'CANCELLED']);
+
+            return back()->with('success', 'Pathao consignment cancelled.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['pathao' => $e->getMessage()]);
+        }
     }
 }
