@@ -14,6 +14,7 @@
         <a href="#footer-settings">Footer</a>
         <a href="#meta">Meta Pixel + CAPI</a>
         <a href="#oms">OMS</a>
+        <a href="#pathao">Pathao Courier</a>
     </div>
 
     <div id="general" class="panel form-grid">
@@ -303,6 +304,70 @@
         </div>
     </div>
 
+    <div id="pathao" class="panel form-grid integration-panel">
+        <div class="span-2 integration-heading">
+            <div>
+                <h2>Pathao Courier Integration</h2>
+                <p class="muted">Ready to Dispatch থেকে selected order সরাসরি Pathao Courier-এ পাঠানো হবে এবং Consignment ID order-এর সাথে save হবে।</p>
+            </div>
+        </div>
+
+        <label class="span-2">API Base URL
+            <input name="pathao_base_url" value="{{ old('pathao_base_url', $siteSettings['pathao_base_url'] ?? 'https://api-hermes.pathao.com') }}">
+        </label>
+
+        <label>Client ID
+            <input name="pathao_client_id" value="{{ old('pathao_client_id', $siteSettings['pathao_client_id'] ?? '') }}">
+        </label>
+
+        <label>Merchant Username / Email
+            <input name="pathao_username" value="{{ old('pathao_username', $siteSettings['pathao_username'] ?? '') }}">
+        </label>
+
+        <label>New Client Secret
+            <input type="password" name="pathao_client_secret_new" value="" autocomplete="off"
+                   placeholder="{{ $integrationState['pathao_client_secret_saved'] ? 'Secret already saved — leave blank to keep it' : 'Pathao Client Secret' }}">
+        </label>
+
+        <label>New Merchant Password
+            <input type="password" name="pathao_password_new" value="" autocomplete="off"
+                   placeholder="{{ $integrationState['pathao_password_saved'] ? 'Password already saved — leave blank to keep it' : 'Pathao Merchant Password' }}">
+        </label>
+
+        <label>Pathao Store ID
+            <input type="number" name="pathao_store_id" min="1" value="{{ old('pathao_store_id', $siteSettings['pathao_store_id'] ?? '') }}">
+        </label>
+
+        <label>Default Item Weight (KG)
+            <input type="number" name="pathao_item_weight" min="0.5" max="10" step="0.1" value="{{ old('pathao_item_weight', $siteSettings['pathao_item_weight'] ?? '0.5') }}">
+        </label>
+
+        <label>Delivery Type
+            <select name="pathao_delivery_type">
+                <option value="48" @selected(old('pathao_delivery_type', $siteSettings['pathao_delivery_type'] ?? '48') == '48')>48 - Normal Delivery</option>
+                <option value="12" @selected(old('pathao_delivery_type', $siteSettings['pathao_delivery_type'] ?? '48') == '12')>12 - On Demand</option>
+            </select>
+        </label>
+
+        <label>Item Type
+            <select name="pathao_item_type">
+                <option value="2" @selected(old('pathao_item_type', $siteSettings['pathao_item_type'] ?? '2') == '2')>2 - Parcel</option>
+                <option value="1" @selected(old('pathao_item_type', $siteSettings['pathao_item_type'] ?? '2') == '1')>1 - Document</option>
+            </select>
+        </label>
+
+        <div class="span-2 oms-test-card">
+            <div class="oms-test-head">
+                <div>
+                    <strong>Pathao Test Connection</strong>
+                    <p>Credentials save করার পরে এই button Pathao Store API call করে connection যাচাই করবে। Secret/password browser-এ ফেরত দেখানো হবে না।</p>
+                </div>
+                <button type="button" class="btn outline" id="pathaoTestButton" data-test-url="{{ route('admin.settings.test-pathao') }}">Test Pathao Connection</button>
+            </div>
+            <div id="pathaoTestResult" class="oms-test-result" hidden></div>
+        </div>
+    </div>
+
     <div class="sticky-save">
         <button class="btn primary large" type="submit">সব সেটিংস সেভ করুন</button>
     </div>
@@ -451,6 +516,44 @@
             button.textContent = 'Test Connection + Send Demo Data';
         }
     });
+
+    const pathaoButton = document.getElementById('pathaoTestButton');
+    const pathaoResult = document.getElementById('pathaoTestResult');
+
+    pathaoButton?.addEventListener('click', async () => {
+        pathaoButton.disabled = true;
+        pathaoButton.textContent = 'Testing...';
+        if (pathaoResult) {
+            pathaoResult.hidden = false;
+            pathaoResult.className = 'oms-test-result loading';
+            pathaoResult.textContent = 'Pathao API connection test করা হচ্ছে...';
+        }
+
+        try {
+            const response = await fetch(pathaoButton.dataset.testUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                },
+                credentials: 'same-origin',
+            });
+            const data = await response.json().catch(() => ({}));
+            if (pathaoResult) {
+                pathaoResult.className = 'oms-test-result ' + (response.ok && data.ok ? 'success' : 'error');
+                pathaoResult.textContent = (data.message || 'Unknown response') + (data.status ? ' (HTTP ' + data.status + ')' : '');
+            }
+        } catch (error) {
+            if (pathaoResult) {
+                pathaoResult.className = 'oms-test-result error';
+                pathaoResult.textContent = error?.message || String(error);
+            }
+        } finally {
+            pathaoButton.disabled = false;
+            pathaoButton.textContent = 'Test Pathao Connection';
+        }
+    });
+
 })();
 </script>
 @endpush
