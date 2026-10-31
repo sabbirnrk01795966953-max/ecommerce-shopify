@@ -12,6 +12,7 @@
         'DELIVERED' => 'ডেলিভারড',
         'RETURNED' => 'রিটার্ন',
         'CANCELLED' => 'বাতিল',
+        'STOCKOUT' => 'স্টকআউট',
     ];
 @endphp
 
