@@ -33,6 +33,8 @@ class SettingsController extends Controller
     public function update(Request $request)
     {
         $data = $request->validate([
+            'ga_measurement_id' => ['nullable','regex:/^G-[A-Z0-9]+$/D','max:40'],
+            'ga_api_secret_new' => 'nullable|string|max:255',
             'site_name' => 'required|string|max:160',
             'site_subtitle' => 'nullable|string|max:255',
             'invoice_prefix' => ['required','string','max:30','regex:/^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/'],
@@ -104,7 +106,19 @@ class SettingsController extends Controller
         $metaBrowserEnabled = $request->boolean('meta_browser_enabled');
         $metaCapiEnabled = $request->boolean('meta_capi_enabled');
 
-        DB::transaction(function () use ($data, $normalKeys, $omsEnabled, $metaBrowserEnabled, $metaCapiEnabled) {
+        DB::transaction(function () use ($data, $normalKeys, $omsEnabled, $metaBrowserEnabled, $metaCapiEnabled, $request) {
+            if ($request->has('ga_settings_present')) {
+                if ($request->boolean('ga_enabled') && empty($data['ga_measurement_id'])) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['ga_measurement_id'=>'Enter a GA4 Measurement ID.']);
+                }
+                foreach (['ga_enabled','ga_server_enabled','ga_debug'] as $key) {
+                    Setting::setValue($key, $request->boolean($key));
+                }
+                Setting::setValue('ga_measurement_id', $data['ga_measurement_id'] ?? '');
+                if (!empty($data['ga_api_secret_new'])) {
+                    Setting::setValue('ga_api_secret', \Illuminate\Support\Facades\Crypt::encryptString($data['ga_api_secret_new']));
+                }
+            }
             foreach ($normalKeys as $key) {
                 if (array_key_exists($key, $data)) {
                     Setting::setValue($key, $data[$key] ?? '');
