@@ -149,7 +149,8 @@ class CheckoutController extends Controller
         try {
             if (Setting::isEnabled('ga_enabled') && $request->input('ga_consent') === 'yes') {
                 $sent = \App\Services\GoogleAnalyticsService::sendPurchase($order, $request);
-                if (!$sent) session()->flash('ga_purchase', \App\Services\GoogleAnalyticsService::purchase($order));
+                session()->put('ga_pending_purchase', \App\Services\GoogleAnalyticsService::purchase($order));
+                logger()->info('GA4 purchase prepared', ['order_id'=>$order->id,'server_http_accepted'=>$sent]);
             }
         } catch (\Throwable $e) {
             logger()->warning('GA4 checkout tracking failed', ['order_id'=>$order->id]);
@@ -248,6 +249,11 @@ class CheckoutController extends Controller
     public function success(string $invoiceId)
     {
         $order = Order::query()->where('invoice_id',$invoiceId)->with('items')->firstOrFail();
+        $pending = session('ga_pending_purchase');
+        if (is_array($pending) && ($pending['transaction_id'] ?? null) === $order->invoice_id) {
+            session()->forget('ga_pending_purchase');
+            session()->now('ga_purchase', $pending);
+        }
         return view('store.success', compact('order'));
     }
 }
