@@ -146,6 +146,14 @@ class CheckoutController extends Controller
             'content_type'=>'product','contents'=>$order->items()->get()->map(fn($i)=>['id'=>$i->sku,'quantity'=>(int)$i->quantity,'item_price'=>(float)$i->price])->all(),
         ], $request, route('order.success',$order->invoice_id));
 
+        try {
+            if (Setting::isEnabled('ga_enabled') && $request->input('ga_consent') === 'yes') {
+                $sent = \App\Services\GoogleAnalyticsService::sendPurchase($order, $request);
+                if (!$sent) session()->flash('ga_purchase', \App\Services\GoogleAnalyticsService::purchase($order));
+            }
+        } catch (\Throwable $e) {
+            logger()->warning('GA4 checkout tracking failed', ['order_id'=>$order->id]);
+        }
         session()->forget('cart');
 
         if ($request->expectsJson()) {
