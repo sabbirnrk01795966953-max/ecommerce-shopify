@@ -500,7 +500,7 @@ window.storeRoutes = {
 
 
 <script
-    src="{{ asset('assets/app.js') }}?v=1.8.0"
+    src="{{ asset('assets/app.js') }}?v=1.8.2"
     defer
 ></script>
 
@@ -511,10 +511,12 @@ window.shopGA = {{ \Illuminate\Support\Js::from([
     'id'=>$siteSettings['ga_measurement_id'],
     'debug'=>($siteSettings['ga_debug'] ?? '0') === '1',
     'title'=>request()->routeIs('order.success') ? 'Order successful' : (request()->routeIs('shop') ? 'Shop' : null),
-    'purchase'=>session('ga_purchase'),
+    'purchase'=>request()->routeIs('order.success') ? session('ga_purchase') : null,
+    'cartEvent'=>session('ga_cart_event'),
+    'search'=>request()->routeIs('shop') && is_string(request('q')) && preg_match('/^[\p{L}\p{M}0-9 _-]{1,80}$/u', request('q')) && !preg_match('/\d{7,}/', request('q')) ? request('q') : null,
 ]) }};
 </script>
-<script src="{{ asset('assets/analytics.js') }}?v=1.0.1" defer></script>
+<script src="{{ asset('assets/analytics.js') }}?v=1.0.2" defer></script>
 @endif
 @stack('scripts')
 
