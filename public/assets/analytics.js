@@ -4,7 +4,22 @@
  let enabled=false, client='', session='';
  const getConsent=()=>{try{return localStorage.getItem('ga-consent')}catch{return null}};
  const saveConsent=v=>{try{localStorage.setItem('ga-consent',v)}catch{}};
- const event=(name,params={})=>{if(enabled) window.gtag('event',name,{...params, ...(cfg.debug?{debug_mode:true}:{})})};
+ const event=async(name,params={})=>{
+  if(!enabled)return;
+  if(Array.isArray(params.items)){
+   const items=await Promise.all(params.items.map(async item=>{
+    const id=String(item.item_id||'');
+    let normalized=id;
+    if(Array.from(id).length>100){
+     const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(id));
+     normalized=Array.from(id).slice(0,64).join('')+'-'+Array.from(new Uint8Array(digest)).map(n=>n.toString(16).padStart(2,'0')).join('').slice(0,32);
+    }
+    return {...item,item_id:normalized,item_name:Array.from(String(item.item_name||'')).slice(0,100).join('')};
+   }));
+   params={...params,items};
+  }
+  if(enabled)window.gtag('event',name,{...params,...(cfg.debug?{debug_mode:true}:{})});
+ };
  const parse=(el,key)=>{try{return JSON.parse(el?.dataset[key]||'[]')}catch{return []}};
  const ecommerce=items=>({currency:'BDT',value:items.reduce((s,i)=>s+Number(i.price)*Number(i.quantity||1),0),items});
  const checkout=form=>{if(!enabled||!form||form.dataset.gaSeen)return;form.dataset.gaSeen='1';const items=parse(form,'gaItems');event('begin_checkout',ecommerce(items))};
@@ -54,14 +69,40 @@
    event('add_payment_info',{...params,payment_type:'COD'});
   }
  },true);
- const banner=document.createElement('div');
- banner.style.cssText='position:fixed;bottom:76px;left:12px;right:12px;max-width:440px;background:#fff;color:#111;border:1px solid #ddd;padding:14px;z-index:99999;border-radius:10px;box-shadow:0 4px 20px #0002;font:14px sans-serif';
- banner.textContent='ওয়েবসাইট উন্নত করতে Analytics cookies ব্যবহার করতে অনুমতি দেবেন? ';
- function button(label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.style.cssText='margin:6px;padding:8px;border:1px solid #777;border-radius:5px;background:white;color:black';b.onclick=fn;banner.append(b)}
- button('Allow',()=>{saveConsent('yes');banner.remove();start()});
- button('Decline',()=>{saveConsent('no');banner.remove()});
- const preferences=document.createElement('button');preferences.type='button';preferences.textContent='Analytics preferences';preferences.style.cssText='display:block;margin:8px auto;font-size:12px';preferences.onclick=()=>document.body.append(banner);document.querySelector('footer')?.append(preferences);
- if(getConsent()==='yes')start();else if(!getConsent())document.body.append(banner);
- // A visitor can withdraw consent; reload to prevent further collection.
- banner.lastChild.onclick=()=>{saveConsent('no');if(enabled){gtag('consent','update',{analytics_storage:'denied'});location.reload()}else banner.remove()};
+ const style=document.createElement('style');
+ style.textContent=`
+ .ga-consent-dialog{border:1px solid #e2e8f0;border-radius:24px;width:min(460px,calc(100% - 32px));max-height:calc(100% - 32px);padding:0;color:#172033;background:#fff;box-shadow:0 24px 80px #0f172a33;font:inherit;overflow:auto}
+ .ga-consent-dialog[open]{animation:ga-in .28s ease-out}
+ .ga-consent-dialog::backdrop{background:#0f172a70;backdrop-filter:blur(3px)}
+ .ga-consent-body{padding:28px;text-align:center}
+ .ga-consent-symbol{display:grid;place-items:center;width:64px;height:64px;border-radius:22px;background:#f1f5f9;margin:0 auto 16px;color:#334155}
+ .ga-consent-body h2{font-size:22px;line-height:1.4;margin:0 0 10px;color:#172033}
+ .ga-consent-body p{font-size:14px;line-height:1.75;color:#475569;margin:0 0 16px}
+ .ga-consent-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 12px}
+ .ga-consent-actions button{font:inherit;font-weight:700;min-height:48px;border:1px solid #334155;border-radius:12px;background:#334155;color:#fff;cursor:pointer;padding:10px;transition:transform .16s,background .16s}
+ .ga-consent-actions button:hover{background:#1e293b;transform:translateY(-1px)}
+ .ga-consent-actions button:focus-visible,.ga-consent-later:focus-visible,.ga-consent-pref:focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+ .ga-consent-later,.ga-consent-pref{font:inherit;font-size:13px;color:inherit;background:transparent;border:0;text-decoration:underline;cursor:pointer;padding:10px}
+ .ga-consent-body small{display:block;color:#64748b;font-size:12px;line-height:1.6}
+ @keyframes ga-in{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+ @media(max-width:420px){.ga-consent-body{padding:20px}.ga-consent-body h2{font-size:19px}}
+ @media(prefers-reduced-motion:reduce){.ga-consent-dialog[open]{animation:none}.ga-consent-actions button{transition:none}}
+ `;
+ document.head.append(style);
+ const banner=document.createElement('dialog');
+ banner.className='ga-consent-dialog';
+ banner.setAttribute('aria-labelledby','ga-consent-title');
+ banner.innerHTML=`<div class="ga-consent-body"><div class="ga-consent-symbol" aria-hidden="true"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg></div><h2 id="ga-consent-title">আপনার গোপনীয়তা, আপনার সিদ্ধান্ত</h2><p>ওয়েবসাইটের অভিজ্ঞতা উন্নত করতে Google Analytics ব্যবহার করে ভিজিট ও কেনাকাটার তথ্য বিশ্লেষণ করি। এই ঐচ্ছিক কুকি গ্রহণ করবেন কি না, সিদ্ধান্ত আপনার।</p><div class="ga-consent-actions"><button type="button" data-choice="no">Decline · না</button><button type="button" data-choice="yes">Allow · হ্যাঁ</button></div><button type="button" class="ga-consent-later">এখন নয়</button><small>Analytics বন্ধ থাকলেও কেনাকাটা করতে পারবেন। পরে Analytics preferences থেকে সিদ্ধান্ত পরিবর্তন করা যাবে।</small></div>`;
+ document.body.append(banner);
+ const open=()=>{if(!banner.open)banner.showModal()};
+ banner.querySelectorAll('[data-choice]').forEach(b=>b.addEventListener('click',()=>{
+  const choice=b.dataset.choice;
+  saveConsent(choice);banner.close();
+  if(choice==='yes'){start();return}
+  if(enabled){enabled=false;gtag('consent','update',{analytics_storage:'denied'});location.reload()}
+ }));
+ banner.querySelector('.ga-consent-later').addEventListener('click',()=>banner.close());
+ const preferences=document.createElement('button');preferences.type='button';preferences.className='ga-consent-pref';preferences.textContent='Analytics preferences';preferences.onclick=open;
+ (document.querySelector('footer')||document.body).append(preferences);
+ if(getConsent()==='yes')start();else if(!getConsent())open();
 })();
