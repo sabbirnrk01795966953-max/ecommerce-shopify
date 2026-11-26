@@ -94,6 +94,8 @@
  banner.setAttribute('aria-labelledby','ga-consent-title');
  banner.innerHTML=`<div class="ga-consent-body"><div class="ga-consent-symbol" aria-hidden="true"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg></div><h2 id="ga-consent-title">আপনার গোপনীয়তা, আপনার সিদ্ধান্ত</h2><p>ওয়েবসাইটের অভিজ্ঞতা উন্নত করতে Google Analytics ব্যবহার করে ভিজিট ও কেনাকাটার তথ্য বিশ্লেষণ করি। এই ঐচ্ছিক কুকি গ্রহণ করবেন কি না, সিদ্ধান্ত আপনার।</p><div class="ga-consent-actions"><button type="button" data-choice="no">Decline · না</button><button type="button" data-choice="yes">Allow · হ্যাঁ</button></div><button type="button" class="ga-consent-later">এখন নয়</button><small>Analytics বন্ধ থাকলেও কেনাকাটা করতে পারবেন। পরে Analytics preferences থেকে সিদ্ধান্ত পরিবর্তন করা যাবে।</small></div>`;
  document.body.append(banner);
+ const deferred=()=>{try{return sessionStorage.getItem('ga-consent-later')==='1'}catch{return false}};
+ const postpone=()=>{try{sessionStorage.setItem('ga-consent-later','1')}catch{}};
  const open=()=>{if(!banner.open)banner.showModal()};
  banner.querySelectorAll('[data-choice]').forEach(b=>b.addEventListener('click',()=>{
   const choice=b.dataset.choice;
@@ -101,8 +103,9 @@
   if(choice==='yes'){start();return}
   if(enabled){enabled=false;gtag('consent','update',{analytics_storage:'denied'});location.reload()}
  }));
- banner.querySelector('.ga-consent-later').addEventListener('click',()=>banner.close());
+ banner.querySelector('.ga-consent-later').addEventListener('click',()=>{postpone();banner.close()});
+ banner.addEventListener('cancel',postpone);
  const preferences=document.createElement('button');preferences.type='button';preferences.className='ga-consent-pref';preferences.textContent='Analytics preferences';preferences.onclick=open;
  (document.querySelector('footer')||document.body).append(preferences);
- if(getConsent()==='yes')start();else if(!getConsent())open();
+ if(getConsent()==='yes')start();else if(!getConsent()&&!deferred())open();
 })();
