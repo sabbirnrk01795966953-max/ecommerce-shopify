@@ -505,6 +505,17 @@ window.storeRoutes = {
 ></script>
 
 
+@if(($siteSettings['ga_enabled'] ?? '0') === '1' && preg_match('/^G-[A-Z0-9]+$/D', $siteSettings['ga_measurement_id'] ?? ''))
+<script>
+window.shopGA = {{ \Illuminate\Support\Js::from([
+    'id'=>$siteSettings['ga_measurement_id'],
+    'debug'=>($siteSettings['ga_debug'] ?? '0') === '1',
+    'title'=>request()->routeIs('order.success') ? 'Order successful' : (request()->routeIs('shop') ? 'Shop' : null),
+    'purchase'=>session('ga_purchase'),
+]) }};
+</script>
+<script src="{{ asset('assets/analytics.js') }}?v=1.0.1" defer></script>
+@endif
 @stack('scripts')
 
 </body>
