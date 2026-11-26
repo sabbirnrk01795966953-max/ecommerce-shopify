@@ -7,7 +7,7 @@
  const event=(name,params={})=>{if(enabled) window.gtag('event',name,{...params, ...(cfg.debug?{debug_mode:true}:{})})};
  const parse=(el,key)=>{try{return JSON.parse(el?.dataset[key]||'[]')}catch{return []}};
  const ecommerce=items=>({currency:'BDT',value:items.reduce((s,i)=>s+Number(i.price)*Number(i.quantity||1),0),items});
- const checkout=form=>{if(!form||form.dataset.gaSeen)return;form.dataset.gaSeen='1';const items=parse(form,'gaItems');event('begin_checkout',ecommerce(items))};
+ const checkout=form=>{if(!enabled||!form||form.dataset.gaSeen)return;form.dataset.gaSeen='1';const items=parse(form,'gaItems');event('begin_checkout',ecommerce(items))};
  window.shopGAEvent=event;
  window.shopGACheckout=checkout;
  function identity(form){
@@ -24,7 +24,7 @@
   gtag('js',new Date());
   const url=new URL(location.href);
   for(const key of [...url.searchParams.keys()])if(!/^(utm_source|utm_medium|utm_campaign|utm_content|utm_term|gclid)$/.test(key))url.searchParams.delete(key);
-  gtag('config',cfg.id,{page_location:url.href,page_title:cfg.title||document.title, page_referrer:document.referrer.split('?')[0],allow_google_signals:false,allow_ad_personalization_signals:false,debug_mode:cfg.debug});
+  gtag('config',cfg.id,{page_location:url.href.split('#')[0],page_title:cfg.title||document.title, page_referrer:document.referrer.split('?')[0],allow_google_signals:false,allow_ad_personalization_signals:false,debug_mode:cfg.debug});
   const script=document.createElement('script');script.async=true;script.src='https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(cfg.id);document.head.append(script);
   gtag('get',cfg.id,'client_id',v=>{client=String(v||'')});
   gtag('get',cfg.id,'session_id',v=>{session=String(v||'')});
@@ -32,6 +32,7 @@
   document.querySelectorAll('.product-grid').forEach(grid=>{const items=[...grid.querySelectorAll('[data-ga-item]')].flatMap(el=>parse(el,'gaItem'));if(items.length)event('view_item_list',{item_list_name:'Store products',items:items.slice(0,200)})});
   document.querySelectorAll('#checkoutForm,[data-quick-checkout-form]').forEach(checkout);
   if(cfg.purchase)event('purchase',cfg.purchase);
+  if(cfg.cartEvent)event(cfg.cartEvent.name,cfg.cartEvent.params);
   if(cfg.search)event('search',{search_term:cfg.search});
   if(document.querySelector('.hero'))event('view_promotion',{promotion_id:'home_hero',promotion_name:'Homepage hero'});
  }
