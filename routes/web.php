@@ -70,6 +70,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth','admin'])->group(func
     Route::post('/shopify/test',[AdminShopifyController::class,'test'])->name('shopify.test');
     Route::post('/shopify/sync-batch',[AdminShopifyController::class,'syncBatch'])->name('shopify.sync-batch');
     Route::get('/settings',[AdminSettingsController::class,'edit'])->name('settings.edit');
+    Route::get('/settings/google-analytics',[\App\Http\Controllers\Admin\GoogleAnalyticsController::class,'edit'])->name('ga4.edit');
+    Route::post('/settings/google-analytics',[\App\Http\Controllers\Admin\GoogleAnalyticsController::class,'save'])->name('ga4.save');
     Route::post('/settings/save-oms',[AdminSettingsController::class,'saveOms'])->name('settings.save-oms');
     Route::post('/settings/test-oms',[AdminSettingsController::class,'testOms'])->name('settings.test-oms');
     Route::post('/settings/test-pathao',[AdminSettingsController::class,'testPathao'])->name('settings.test-pathao');
