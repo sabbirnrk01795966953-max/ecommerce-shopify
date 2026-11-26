@@ -15,7 +15,7 @@
 
     <div class="quick-checkout-errors" data-checkout-errors hidden></div>
 
-    <form action="{{ route('checkout.store') }}" method="post" class="quick-checkout-form" data-quick-checkout-form data-subtotal="{{ $subtotal }}">
+    <form action="{{ route('checkout.store') }}" method="post" class="quick-checkout-form" data-quick-checkout-form data-ga-items="{{ json_encode(array_values(array_map(fn($i)=>['item_id'=>(string)($i['sku'] ?: $i['product_id']),'item_name'=>$i['name'],'price'=>(float)$i['price'],'quantity'=>(int)$i['quantity']], $cart))) }}" data-subtotal="{{ $subtotal }}">
         @csrf
         <input type="hidden" name="event_id" value="">
 
