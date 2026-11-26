@@ -516,7 +516,7 @@ window.shopGA = {{ \Illuminate\Support\Js::from([
     'search'=>request()->routeIs('shop') && is_string(request('q')) && preg_match('/^[\p{L}\p{M}0-9 _-]{1,80}$/u', request('q')) && !preg_match('/\d{7,}/', request('q')) ? request('q') : null,
 ]) }};
 </script>
-<script src="{{ asset('assets/analytics.js') }}?v=1.0.2" defer></script>
+<script src="{{ asset('assets/analytics.js') }}?v=1.0.3" defer></script>
 @endif
 @stack('scripts')
 
