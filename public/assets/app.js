@@ -716,6 +716,7 @@
       }
 
       initQuickCheckoutForm();
+      window.shopGACheckout?.(content.querySelector('[data-quick-checkout-form]'));
 
       const form =
         content.querySelector(
@@ -895,6 +896,7 @@
         }
       );
 
+      if (data.ga_event) window.shopGAEvent?.(data.ga_event.name, data.ga_event.params);
       await openQuickCheckout();
 
     } catch (error) {
