@@ -7,6 +7,13 @@ use Illuminate\Http\Request;
 
 class CartController extends Controller
 {
+    private function analyticsEvent(array $line, int $delta): ?array
+    {
+        if (!$delta) return null;
+        $item = ['item_id'=>(string)($line['sku'] ?: $line['product_id']),'item_name'=>$line['name'],'price'=>(float)$line['price'],'quantity'=>abs($delta)];
+        return ['name'=>$delta>0?'add_to_cart':'remove_from_cart','params'=>['currency'=>'BDT','value'=>$item['price']*$item['quantity'],'items'=>[$item]]];
+    }
+
     public function index() { return view('store.cart', ['cart'=>$this->cart()]); }
 
     public function add(Request $request, Product $product)
@@ -21,14 +28,17 @@ class CartController extends Controller
         ];
         session(['cart'=>$cart]);
 
+        $analytics = $this->analyticsEvent($cart[$product->id], $cart[$product->id]['quantity']-$existing);
         if ($request->expectsJson()) {
             return response()->json([
                 'ok' => true,
                 'message' => 'পণ্যটি কার্টে যোগ হয়েছে।',
                 'cart_count' => collect($cart)->sum('quantity'),
+                'ga_event' => $analytics,
             ]);
         }
 
+        if ($analytics) session()->flash('ga_cart_event',$analytics);
         return back()->with('success','পণ্যটি কার্টে যোগ হয়েছে।');
     }
 
@@ -36,15 +46,23 @@ class CartController extends Controller
     {
         $cart = session('cart', []);
         if (isset($cart[$product->id])) {
+            $oldQuantity = $cart[$product->id]['quantity'];
             $cart[$product->id]['quantity'] = max(1, min(99, (int)$request->input('quantity',1)));
             session(['cart'=>$cart]);
+            $event = $this->analyticsEvent($cart[$product->id], $cart[$product->id]['quantity']-$oldQuantity);
+            if ($event) session()->flash('ga_cart_event',$event);
         }
         return back();
     }
 
     public function remove(Product $product)
     {
-        $cart = session('cart', []); unset($cart[$product->id]); session(['cart'=>$cart]);
+        $cart = session('cart', []);
+        if (isset($cart[$product->id])) {
+            $event = $this->analyticsEvent($cart[$product->id], -$cart[$product->id]['quantity']);
+            if ($event) session()->flash('ga_cart_event',$event);
+        }
+        unset($cart[$product->id]); session(['cart'=>$cart]);
         return back();
     }
 
